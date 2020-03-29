@@ -1,0 +1,43 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+#
+# File:    vmping
+# Author:  Jiří Kučera, <sanczes@gmail.com>
+# Date:    2020-03-28 18:12:05 +0100
+# Project: Virtual Machine Tools (vmtools)
+# Brief:   Ping virtual machine.
+#
+
+set -euo pipefail
+
+PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
+. vmtools.sh >/dev/null 2>&1 || {
+  echo "I can't see vmtools.sh. Are vmtools installed?" >&2
+  exit 1
+}
+
+clishe_init
+
+clishe_defopt VMNAME "a name of virtual machine"
+clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
+only print what should be done, do not perform anything
+__HELP__
+clishe_defopt --help -h -? -- "print this screen and exit" help usage
+
+function usage() {
+  cat <<-__USAGE__
+	Ping virtual machine.
+
+	Usage: ${clishe_scriptname} ( VMNAME | --help | -h | -? | --dry-run )
+	where
+
+	${clishe_helplines}
+
+	This command is useful for verifying SSH connection with \${VMNAME}.
+	__USAGE__
+  exit 0
+}
+
+clishe_process_options "$@"
+
+DRY_RUN="${DRY_RUN:-}" vmtools_vmping "${VMNAME}"

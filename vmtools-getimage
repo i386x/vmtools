@@ -1,0 +1,54 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+#
+# File:    vmtools-getimage
+# Author:  Jiří Kučera, <sanczes@gmail.com>
+# Date:    2020-03-28 18:29:47 +0100
+# Project: Virtual Machine Tools (vmtools)
+# Brief:   Get an image for virtual machine.
+#
+
+set -euo pipefail
+
+PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
+. vmtools.sh >/dev/null 2>&1 || {
+  echo "I can't see vmtools.sh. Are vmtools installed?" >&2
+  exit 1
+}
+
+clishe_init
+
+clishe_defopt IMGLOC "" <<__HELP__
+image location; can be URL or path within a filesystem
+__HELP__
+clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
+only print what should be done, do not perform anything
+__HELP__
+clishe_defopt --help -h -? -- "print this screen and exit" help usage
+clishe_defopt "@ARGS..." "" <<__HELP__
+additional arguments for a command that gets the image; conventionally, the
+first argument is a name of image file or a path where to save it (absolute or
+relative to image storage); if no file name of image is provided, it is deduced
+from IMGLOC
+__HELP__
+
+function usage() {
+  local _synopsis="( IMGLOC | --help | -h | -? ) [--dry-run] [ARGS...]"
+  cat <<-__USAGE__
+	Get an image for virtual machine.
+
+	Usage: ${clishe_scriptname} ${_synopsis}
+	where
+
+	${clishe_helplines}
+
+	Get an image from the given location and save it to the image directory
+	or user specified destination. The behavior of this command can be
+	customized by configuring the VMTOOLS_GET_IMAGE_CMD variable.
+	__USAGE__
+  exit 0
+}
+
+clishe_process_options "$@"
+
+DRY_RUN="${DRY_RUN:-}" vmtools_get_image "${IMGLOC}" "${clishe_tailopts[@]}"
