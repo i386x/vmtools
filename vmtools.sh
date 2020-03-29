@@ -457,7 +457,9 @@ function vmtools_get_image() {
 
 function vmtools_vmstart() {
   __need_arg "${1:-}"
+  __checkpidfile "${1}"
   (
+    _pidfile="$(__pidfilepath "${1}")"
     declare -a _qemu_cmds
     declare -a _virtio_rng_devices
     declare -a _qemu_params
@@ -568,6 +570,8 @@ function vmtools_vmstart() {
       -serial "chardev:pts2"
       # Log all traffic received from the guest to log_quest:
       -chardev "file,id=pts2,path=${_guest_log}"
+      # Store the qemu process ID to a file:
+      -pidfile "${_pidfile}"
       # Output log to logfile instead of stderr:
       -D "${_qemu_log}"
       # Daemonize:
@@ -576,31 +580,28 @@ function vmtools_vmstart() {
 
     # Launch qemu:
     set +e
+    _qemu_ec=0
     if [[ "${DRY_RUN:-}" ]]; then
       clishe_echo --blue "[dry run]" "${_qemu_cmd}" "${_qemu_params[@]}"
       exit 0
     else
       clishe_echo --blue "Launching VM ${1}..."
-      "${_qemu_cmd}" "${_qemu_params[@]}"
-      _qemu_ec=$?
-      _qemu_pid=$!
+      "${_qemu_cmd}" "${_qemu_params[@]}" || _qemu_ec=$?
     fi
 
     _failmsg="Launching VM ${1} has failed. See ${_qemu_log} for details."
 
-    if [[ _qemu_ec -ne 0 ]]; then
+    if [[ ${_qemu_ec} -ne 0 ]] || [[ ! -s "${_pidfile}" ]]; then
       clishe_error "${_failmsg}"
     fi
 
-    _pidfile="$(__pidfilepath "${1}")"
-    __fecho "${_pidfile}" "${_qemu_pid}"
-
     # Wait the launched OS became active:
+    _qemu_pid="$(cat "${_pidfile}")"
     _active=""
     sleep 5
     _i=0
     while [[ ${_i} -lt 600 ]]; do
-      clishe_echo --blue "Waiting to VM ${1} to become ready (#${_1})."
+      clishe_echo --blue "Waiting to VM ${1} to become ready #$(( _i + 1 ))."
       if [[ ! -f "/proc/${_qemu_pid}/status" ]]; then
         __runcmd rm -f "${_pidfile}"
         clishe_error "${_failmsg}"
@@ -614,9 +615,9 @@ function vmtools_vmstart() {
     done
 
     if [[ -z "${_active}" ]]; then
+      clishe_error "Unable to connect to launched VM ${1}. Killing."
       kill -SIGTERM "${_qemu_pid}"
       __runcmd rm -f "${_pidfile}"
-      clishe_error "Unable to connect to launched VM ${1}. Killing."
     fi
 
     clishe_echo --green "VM ${1} is ready."
