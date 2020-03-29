@@ -87,22 +87,19 @@ function __need_file() {
 }
 
 function __runcmd() {
-  __need_arg "${1:-}"
-  (
-    set +e
-    _error_code=0
+  local _error_code=0
 
-    if [[ -z "${DRY_RUN:-}" ]]; then
-      "$@" 2> "${__stderr}"; _error_code=$?
-      if [[ ${_error_code} -ne 0 ]]; then
-        clishe_echo --red "\n[Error] ($*):"
-        cat "${__stderr}" >&2
-        exit ${_error_code}
-      fi
-    else
-      clishe_echo --blue "[dry run] $*"
+  __need_arg "${1:-}"
+  if [[ -z "${DRY_RUN:-}" ]]; then
+    "$@" 2> "${__stderr}" || _error_code=$?
+    if [[ ${_error_code} -ne 0 ]]; then
+      clishe_echo --red "\n[Error] ($*):"
+      cat "${__stderr}" >&2
+      exit ${_error_code}
     fi
-  )
+  else
+    clishe_echo --blue "[dry run] $*"
+  fi
 }
 
 function __fecho() {
