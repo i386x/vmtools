@@ -229,13 +229,13 @@ function __create_cloud() {
 
     __cd "${_clouddir}"
 
-    __need_file "${VMCFG_ID_RSA_PUB}"
+    __need_file "../${VMCFG_ID_RSA_PUB}"
 
     __runcmd cp -v "../${VMCFG_ID_RSA}" "${__cloud_id_rsa}"
     __runcmd chmod 600 "${__cloud_id_rsa}"
     __runcmd touch "${__cloud_meta_data}"
     __runcmd __create_cloud_user_data "${__cloud_user_data}" \
-      "${VMCFG_USER}" "${VMCFG_PASSWORD}" "$(cat "${VMCFG_ID_RSA_PUB}")"
+      "${VMCFG_USER}" "${VMCFG_PASSWORD}" "$(cat "../${VMCFG_ID_RSA_PUB}")"
     __runcmd genisoimage -input-charset utf-8 -volid cidata -joliet -rock \
       -output "${__cloud_init_iso}" \
       "${__cloud_user_data}" "${__cloud_meta_data}"
