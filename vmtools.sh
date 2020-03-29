@@ -577,10 +577,10 @@ function vmtools_vmstart() {
     # Launch qemu:
     set +e
     if [[ "${DRY_RUN:-}" ]]; then
-      clishe_echo -blue "[dry run]" "${_qemu_cmd}" "${_qemu_params[@]}"
+      clishe_echo --blue "[dry run]" "${_qemu_cmd}" "${_qemu_params[@]}"
       exit 0
     else
-      clishe_echo -blue "Launching VM ${1}..."
+      clishe_echo --blue "Launching VM ${1}..."
       "${_qemu_cmd}" "${_qemu_params[@]}"
       _qemu_ec=$?
       _qemu_pid=$!
