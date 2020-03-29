@@ -600,6 +600,7 @@ function vmtools_vmstart() {
     sleep 5
     _i=0
     while [[ ${_i} -lt 600 ]]; do
+      clishe_echo --blue "Waiting to VM ${1} to become ready (#${_1})."
       if [[ ! -f "/proc/${_qemu_pid}/status" ]]; then
         __runcmd rm -f "${_pidfile}"
         clishe_error "${_failmsg}"
