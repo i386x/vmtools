@@ -161,7 +161,7 @@ function __findprog() {
 }
 
 function __socketinuse() {
-  __need "${1}"
+  __need_arg "${1:-}"
   {
     if command -v ss >/dev/null 2>&1; then
       ss -tulwn
@@ -537,7 +537,7 @@ function vmtools_vmstart() {
         _ncpus="$(nproc)"
       fi
     fi
-    if [[ ! "${_ncpus}" =~ ^[1-9][0-9]+$ ]]; then
+    if [[ ! "${_ncpus}" =~ ^[1-9][0-9]*$ ]]; then
       clishe_error "${FUNCNAME[0]}: Number of CPUs must be numeric value."
     fi
 
