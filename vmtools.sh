@@ -410,8 +410,8 @@ function vmtools_vmssh() {
       -o "StrictHostKeyChecking=no"
       -o "UserKnownHostsFile=/dev/null"
       -i "${VMCFG_ID_RSA}"
-      "$@"
       "${VMCFG_USER}@${VMCFG_HOST}"
+      "$@"
     )
 
     if [[ "${DRY_RUN:-}" ]]; then
@@ -423,7 +423,7 @@ function vmtools_vmssh() {
 }
 
 function vmtools_vmping() {
-  vmtools_vmssh "${1:-}" -c /bin/true
+  vmtools_vmssh "${1:-}" /bin/true
 }
 
 # -----------------------------------------------------------------------------
