@@ -32,7 +32,7 @@ __pidfile="qemu.pid"
 
 __stderr="$(mktemp /tmp/vmtools-XXXXXXX.stderr)"
 
-trap 'rm -v -f ${__stderr}' ABRT EXIT HUP INT QUIT
+trap 'rm -f ${__stderr}' ABRT EXIT HUP INT QUIT
 
 # -----------------------------------------------------------------------------
 # -- 1) Helpers
