@@ -436,7 +436,7 @@ function vmtools_vmping() {
 function vmtools_get_image_cmd() {
   __need_arg "${1:-}"
 
-  if [[ "${1}" =~ ^[:alpha:]+:*$ ]]; then
+  if [[ "${1}" =~ ^[[:alpha:]]+:.*$ ]]; then
     __runcmd wget -O "${2:-${1##*/}}" "${1}"
   else
     __runcmd cp -v "${1}" "${2:-.}"
