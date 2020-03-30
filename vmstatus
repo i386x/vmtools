@@ -1,11 +1,11 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
 #
-# File:    vmconfig
+# File:    vmstatus
 # Author:  Jiří Kučera, <sanczes@gmail.com>
-# Date:    2020-03-28 17:42:55 +0100
+# Date:    2020-03-30 02:07:58 +0200
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Edit virtual machine's configuration.
+# Brief:   Display status of virtual machine.
 #
 
 set -euo pipefail
@@ -26,20 +26,19 @@ clishe_defopt --help -h -? -- "print this screen and exit" help usage
 
 function usage() {
   cat <<-__USAGE__
-	Edit virtual machine's configuration.
+	Display status of virtual machine.
 
 	Usage: ${clishe_scriptname} VMNAME [--dry-run | --help -h -?]
 	where
 
 	${clishe_helplines}
 
-	Open \${VMNAME}'s configuration for editing. An editor to be used for
-	editing is read from VMTOOLS_EDITOR or EDITOR variable (default editor
-	is \`vi\`).
+	Display if VMNAME is active or halted. If VMNAME is active, return 0.
+	Otherwise, return 1.
 	__USAGE__
   exit 0
 }
 
 clishe_process_options "$@"
 
-DRY_RUN="${DRY_RUN:-}" vmtools_edit_config "${VMNAME}"
+DRY_RUN="${DRY_RUN:-}" vmtools_vmstatus "${VMNAME}"

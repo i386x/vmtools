@@ -1,11 +1,11 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
 #
-# File:    vmconfig
+# File:    vmkill
 # Author:  Jiří Kučera, <sanczes@gmail.com>
-# Date:    2020-03-28 17:42:55 +0100
+# Date:    2020-03-30 01:25:58 +0200
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Edit virtual machine's configuration.
+# Brief:   Send a signal to virtual machine.
 #
 
 set -euo pipefail
@@ -19,27 +19,30 @@ PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
 clishe_init
 
 clishe_defopt VMNAME "a name of virtual machine"
+clishe_defopt SIGSPEC "" <<__HELP__
+a signal specification (name or number); syntax is same as in kill command
+except starting dash, so write 9, SIGTERM instead of -9, -SIGTERM
+__HELP__
 clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
 only print what should be done, do not perform anything
 __HELP__
 clishe_defopt --help -h -? -- "print this screen and exit" help usage
 
 function usage() {
+  local _synopsis="VMNAME SIGSPEC [--dry-run | --help -h -?]"
   cat <<-__USAGE__
-	Edit virtual machine's configuration.
+	Send a signal to virtual machine.
 
-	Usage: ${clishe_scriptname} VMNAME [--dry-run | --help -h -?]
+	Usage: ${clishe_scriptname} ${_synopsis}
 	where
 
 	${clishe_helplines}
 
-	Open \${VMNAME}'s configuration for editing. An editor to be used for
-	editing is read from VMTOOLS_EDITOR or EDITOR variable (default editor
-	is \`vi\`).
+	Send a signal to the qemu process that runs VMNAME virtual machine.
 	__USAGE__
   exit 0
 }
 
 clishe_process_options "$@"
 
-DRY_RUN="${DRY_RUN:-}" vmtools_edit_config "${VMNAME}"
+DRY_RUN="${DRY_RUN:-}" vmtools_vmkill "${VMNAME}" "${SIGSPEC}"

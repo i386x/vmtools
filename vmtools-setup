@@ -27,7 +27,7 @@ function usage() {
   cat <<-__USAGE__
 	Setup vmtools configuration and directories.
 
-	Usage: ${clishe_scriptname} [ --help | -h | -? | --dry-run ]
+	Usage: ${clishe_scriptname} [--dry-run | --help -h -?]
 	where
 
 	${clishe_helplines}

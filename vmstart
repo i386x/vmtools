@@ -28,7 +28,7 @@ function usage() {
   cat <<-__USAGE__
 	Start a virtual machine.
 
-	Usage: ${clishe_scriptname} ( VMNAME | --help | -h | -? | --dry-run )
+	Usage: ${clishe_scriptname} VMNAME [--dry-run | --help -h -?]
 	where
 
 	${clishe_helplines}

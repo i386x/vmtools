@@ -23,12 +23,15 @@ clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
 only print what should be done, do not perform anything
 __HELP__
 clishe_defopt --help -h -? -- "print this screen and exit" help usage
+clishe_defopt "@COMMAND" "" <<__HELP__
+an optional command that would be executed on guest
+__HELP__
 
 function usage() {
   cat <<-__USAGE__
 	Establish SSH session with virtual machine.
 
-	Usage: ${clishe_scriptname} ( VMNAME | --help | -h | -? | --dry-run )
+	Usage: ${clishe_scriptname} VMNAME [--dry-run | --help -h -?] [COMMAND]
 	where
 
 	${clishe_helplines}
@@ -41,4 +44,4 @@ function usage() {
 
 clishe_process_options "$@"
 
-DRY_RUN="${DRY_RUN:-}" vmtools_vmssh "${VMNAME}"
+DRY_RUN="${DRY_RUN:-}" vmtools_vmssh "${VMNAME}" "${clishe_tailopts[@]}"

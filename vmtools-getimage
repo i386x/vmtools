@@ -33,7 +33,7 @@ from IMGLOC
 __HELP__
 
 function usage() {
-  local _synopsis="( IMGLOC | --help | -h | -? ) [--dry-run] [ARGS...]"
+  local _synopsis="IMGLOC [--dry-run | --help -h -?] [ARGS...]"
   cat <<-__USAGE__
 	Get an image for virtual machine.
 

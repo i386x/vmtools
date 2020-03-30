@@ -95,7 +95,7 @@ function __runcmd() {
     if [[ ${_error_code} -ne 0 ]]; then
       clishe_echo --red "\n[Error] ($*):"
       cat "${__stderr}" >&2
-      exit ${_error_code}
+      return ${_error_code}
     fi
   else
     clishe_echo --blue "[dry run] $*"
@@ -172,10 +172,17 @@ function __socketinuse() {
 }
 
 function __checkpidfile() {
+  local _pidfile=""
+  local _pid=0
+
   __need_arg "${1:-}"
-  if [[ -f "$(__pidfilepath "${1}")" ]]; then
-    clishe_error "VM ${1} is probably still in use. Try \`vmstop ${1}\` to" \
-      "stop it."
+  _pidfile="$(__pidfilepath "${1}")"
+  if [[ -f "${_pidfile}" ]]; then
+    _pid="$(cat "${_pidfile}")"
+    if [[ -f "/proc/${_pid}/status" ]]; then
+      clishe_error "VM ${1} is still active. Try \`vmstop ${1}\` to halt it."
+    fi
+    __runcmd rm -f "${_pidfile}"
   fi
 }
 
@@ -409,6 +416,7 @@ function vmtools_vmssh() {
       -p "${VMCFG_PORT}"
       -o "StrictHostKeyChecking=no"
       -o "UserKnownHostsFile=/dev/null"
+      -o "LogLevel=ERROR"
       -i "${VMCFG_ID_RSA}"
       "${VMCFG_USER}@${VMCFG_HOST}"
       "$@"
@@ -430,13 +438,45 @@ function vmtools_vmping() {
 # -- 6) Image Management
 # -----------------------------------------------------------------------------
 
+function __copy_image() {
+  if [[ -f "${2}" ]]; then
+    clishe_error "Image $(__realpath "${2}") already exists."
+  fi
+  if [[ -d "${2}" ]] && [[ -f "${2}/${1##*/}" ]]; then
+    clishe_error "Image $(__realpath "${2}/${1##*/}") already exists."
+  fi
+  __runcmd cp -v "$@"
+}
+
+function __wget_image() {
+  local _error_code=0
+  local _dest="${2}"
+  local _imgfile="${_dest##*/}"
+
+  if [[ -f "${_dest}" ]]; then
+    clishe_error "Image $(__realpath "${_dest}") already exists."
+  fi
+
+  if [[ "${DRY_RUN:-}" ]]; then
+    clishe_echo --blue "[dry run]" wget -O "${_dest}" "${1}"
+  else
+    wget -O "${_dest}" "${1}" || _error_code=$?
+    if [[ ${_error_code} -eq 0 ]]; then
+      clishe_echo --green "Image ${_imgfile} successfully downloaded."
+    else
+      clishe_error ${_error_code} \
+        "Attempt to get ${_imgfile} from ${1} has failed."
+    fi
+  fi
+}
+
 function vmtools_get_image_cmd() {
   __need_arg "${1:-}"
 
   if [[ "${1}" =~ ^[[:alpha:]]+:.*$ ]]; then
-    __runcmd wget -O "${2:-${1##*/}}" "${1}"
+    __wget_image "${1}" "${2:-${1##*/}}"
   else
-    __runcmd cp -v "${1}" "${2:-.}"
+    __copy_image "${1}" "${2:-.}"
   fi
 }
 
@@ -583,7 +623,7 @@ function vmtools_vmstart() {
     _qemu_ec=0
     if [[ "${DRY_RUN:-}" ]]; then
       clishe_echo --blue "[dry run]" "${_qemu_cmd}" "${_qemu_params[@]}"
-      exit 0
+      return 0
     else
       clishe_echo --blue "Launching VM ${1}..."
       "${_qemu_cmd}" "${_qemu_params[@]}" || _qemu_ec=$?
@@ -622,4 +662,100 @@ function vmtools_vmstart() {
 
     clishe_echo --green "VM ${1} is ready."
   )
+}
+
+function vmtools_vmstop() {
+  local _error_code
+
+  __need_arg "${1:-}"
+
+  __vmstatusq "${1}" || {
+    clishe_echo --blue "VM ${1} is already halted."
+    return 0
+  }
+
+  _error_code=0
+  __vmsshq "${1}" "shutdown -h now" || _error_code=$?
+  if [[ ${_error_code} -eq 0 ]] && __vmwait "${1}"; then
+    return 0
+  fi
+
+  _error_code=0
+  __vmkillq "${1}" SIGTERM || _error_code=$?
+  if [[ ${_error_code} -eq 0 ]] && __vmwait "${1}"; then
+    return 0
+  fi
+
+  _error_code=0
+  __vmkillq "${1}" 9 || _error_code=$?
+  if [[ ${_error_code} -eq 0 ]] && __vmwait "${1}" 5; then
+    return 0
+  fi
+
+  clishe_error "Unable to halt VM ${1}. Please, check it manually."
+}
+
+function __vmsshq() {
+  vmtools_vmssh "$@" >/dev/null 2>&1
+}
+
+function __vmkillq() {
+  vmtools_vmkill "$@" >/dev/null 2>&1
+}
+
+function vmtools_vmkill() {
+  __need_arg "${1:-}"
+  __need_arg "${2:-}"
+
+  __vmstatusq "${1}" || {
+    clishe_echo --blue "VM ${1} is halted."
+    return 0
+  }
+  __runcmd kill "-${2}" "$(cat "$(__pidfilepath "${1}")")"
+}
+
+function __vmwait() {
+  local _i=0
+
+  while [[ ${_i} -lt ${2:-600} ]]; do
+    sleep 1
+    __vmstatusq "${1}" || {
+      clishe_echo --green "VM ${1} was successfully halted."
+      return 0
+    }
+    _i=$(( _i + 1 ))
+  done
+  return 1
+}
+
+function __vmstatusq() {
+  vmtools_vmstatus "$@" >/dev/null 2>&1
+}
+
+# -----------------------------------------------------------------------------
+# -- 8) Status
+# -----------------------------------------------------------------------------
+
+function vmtools_vmstatus() {
+  local _pidfile=""
+  local _qemu_pid=""
+
+  __need_arg "${1:-}"
+  _pidfile="$(__pidfilepath "${1}")"
+
+  if [[ ! -f "${_pidfile}" ]]; then
+    clishe_echo --red "Halted"
+    return 1
+  fi
+
+  _qemu_pid="$(cat "${_pidfile}")"
+
+  if [[ ! -f "/proc/${_qemu_pid}/status" ]]; then
+    __runcmd rm -f "${_pidfile}"
+    clishe_echo --red "Halted"
+    return 1
+  fi
+
+  clishe_echo --green "Active"
+  return 0
 }

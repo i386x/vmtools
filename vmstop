@@ -1,11 +1,11 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
 #
-# File:    vmconfig
+# File:    vmstop
 # Author:  Jiří Kučera, <sanczes@gmail.com>
-# Date:    2020-03-28 17:42:55 +0100
+# Date:    2020-03-29 20:20:37 +0200
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Edit virtual machine's configuration.
+# Brief:   Halt virtual machine.
 #
 
 set -euo pipefail
@@ -26,20 +26,18 @@ clishe_defopt --help -h -? -- "print this screen and exit" help usage
 
 function usage() {
   cat <<-__USAGE__
-	Edit virtual machine's configuration.
+	Halt a virtual machine.
 
 	Usage: ${clishe_scriptname} VMNAME [--dry-run | --help -h -?]
 	where
 
 	${clishe_helplines}
 
-	Open \${VMNAME}'s configuration for editing. An editor to be used for
-	editing is read from VMTOOLS_EDITOR or EDITOR variable (default editor
-	is \`vi\`).
+	Halt a virtual machine and terminate associated qemu process.
 	__USAGE__
   exit 0
 }
 
 clishe_process_options "$@"
 
-DRY_RUN="${DRY_RUN:-}" vmtools_edit_config "${VMNAME}"
+DRY_RUN="${DRY_RUN:-}" vmtools_vmstop "${VMNAME}"
