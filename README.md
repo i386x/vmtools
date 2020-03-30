@@ -2,7 +2,8 @@
 
 *vmtools*, or virtual machine tools, is a set of scripts for managing virtual
 machines and images. Its purpose is to help with testing software and features
-on operating systems without touching the host.
+on operating systems without touching the host. Virtual machines are running in
+*snapshot* mode, which means that after halting every change is forgotten.
 
 ## Requirements
 
@@ -43,7 +44,8 @@ cd testlab
 vminit myfirstvm
 ```
 
-Configure your `myfirstvm` and apply the changes with `vmupdate`:
+Configure your `myfirstvm` and apply the changes with `vmupdate` (if you just
+provide image path, you do not need to run `vmupdate`):
 ```
 vmconfig myfirstvm
 vmupdate myfirstvm
@@ -60,5 +62,14 @@ You can check the SSH connection with `vmping` or you can connect to
 vmping myfirstvm
 vmssh myfirstvm
 ```
+
+Or you can halt it if you are done with it:
+```
+vmstop myfirstvm
+```
+
+There are plenty of other useful commands:
+* `vmkill` to send a signal to the process running the virtual machine
+* `vmstatus` to check whether virtual machine is active or halted
 
 Have fun!
