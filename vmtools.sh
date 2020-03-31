@@ -759,3 +759,60 @@ function vmtools_vmstatus() {
   clishe_echo --green "Active"
   return 0
 }
+
+# -----------------------------------------------------------------------------
+# -- 9) Ansible
+# -----------------------------------------------------------------------------
+
+function vmtools_vmplay() {
+  __need_arg "${1:-}"
+  (
+    declare -a _pythons=(
+      /usr/bin/python3
+      /usr/bin/python2
+      /usr/libexec/platform-python
+    )
+
+    __source "$(__configpath "${1}")"
+
+    __need_var VMCFG_USER
+    __need_var VMCFG_PASSWORD
+    __need_var VMCFG_HOST
+    __need_var VMCFG_PORT
+    __need_var VMCFG_ID_RSA
+    _id_rsa="$(__workspacepath "${1}")/${VMCFG_ID_RSA}"
+    __need_file "${_id_rsa}"
+
+    _ssh_common_args="-o UserKnownHostsFile=/dev/null"
+    _ssh_common_args="${_ssh_common_args} -o StrictHostKeyChecking=no"
+
+    _python=""
+    for _i in "${_pythons[@]}"; do
+      if __vmsshq "${1}" "test -x ${_i}"; then
+        _python="${_i}"
+        break
+      fi
+    done
+
+    _extra_vars=$(
+      echo -n "{\"ansible_port\":\"${VMCFG_PORT}\""
+      echo -n ",\"ansible_ssh_pass\":\"${VMCFG_PASSWORD}\""
+      echo -n ",\"ansible_ssh_private_key_file\":\"${_id_rsa}\""
+      echo -n ",\"ansible_ssh_common_args\":\"${_ssh_common_args}\""
+      if [[ "${_python}" ]]; then
+        echo -n ",\"ansible_python_interpreter\":\"${_python}\""
+      fi
+      echo -n "}"
+    )
+
+    shift
+
+    if [[ "${DRY_RUN:-}" ]]; then
+      clishe_echo --blue "[dry run]" ansible-playbook -vv -u "${VMCFG_USER}" \
+        -i "${VMCFG_HOST}," -e "${_extra_vars}" "$@"
+    else
+      ansible-playbook -vv -u "${VMCFG_USER}" -i "${VMCFG_HOST}," \
+        -e "${_extra_vars}" "$@"
+    fi
+  )
+}

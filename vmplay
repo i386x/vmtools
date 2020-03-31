@@ -1,0 +1,48 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+#
+# File:    vmplay
+# Author:  Jiří Kučera, <sanczes@gmail.com>
+# Date:    2020-03-30 17:02:45 +0200
+# Project: Virtual Machine Tools (vmtools)
+# Brief:   Run Ansible playbooks on virtual machine.
+#
+
+set -euo pipefail
+
+PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
+. vmtools.sh >/dev/null 2>&1 || {
+  echo "I can't see vmtools.sh. Are vmtools installed?" >&2
+  exit 1
+}
+
+clishe_init
+
+clishe_defopt VMNAME "a name of virtual machine"
+clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
+only print what should be done, do not perform anything
+__HELP__
+clishe_defopt --help -h -? -- "print this screen and exit" help usage
+clishe_defopt "@PLAYBK1 PLAYBK2 ..." "" <<__HELP__
+a list of Ansible playbooks to be executed
+__HELP__
+
+function usage() {
+  local _synopsis="VMNAME [--dry-run | --help -h -?] PLAYBK1 [PLAYBK2 [...]]"
+  cat <<-__USAGE__
+	Run Ansible playbooks on virtual machine.
+
+	Usage: ${clishe_scriptname} ${_synopsis}
+	where
+
+	${clishe_helplines}
+
+	Execute Ansible playbooks PLAYBK1, PLAYBK2, ... on \${VMNAME} virtual
+	machine.
+	__USAGE__
+  exit 0
+}
+
+clishe_process_options "$@"
+
+DRY_RUN="${DRY_RUN:-}" vmtools_vmplay "${VMNAME}" "${clishe_tailopts[@]}"
