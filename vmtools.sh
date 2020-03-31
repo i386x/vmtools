@@ -30,10 +30,6 @@ __cloud_user_data="user-data"
 __cloud_init_iso="cloud-init.iso"
 __pidfile="qemu.pid"
 
-__stderr="$(mktemp /tmp/vmtools-XXXXXXX.stderr)"
-
-trap 'rm -f ${__stderr}' ABRT EXIT HUP INT QUIT
-
 # -----------------------------------------------------------------------------
 # -- 1) Helpers
 # -----------------------------------------------------------------------------
@@ -88,28 +84,27 @@ function __need_file() {
 
 function __runcmd() {
   local _error_code=0
+  local _stdout=""
+  local _cmd=""
 
-  __need_arg "${1:-}"
+  _cmd="$*"
+  if [[ "${1}" == --stdout ]]; then
+    _stdout="${2}"
+    shift 2
+    _cmd="$* > ${_stdout}"
+  fi
   if [[ -z "${DRY_RUN:-}" ]]; then
-    "$@" 2> "${__stderr}" || _error_code=$?
+    if [[ -z "${_stdout}" ]]; then
+      "$@" || _error_code=$?
+    else
+      "$@" > "${_stdout}" || _error_code=$?
+    fi
     if [[ ${_error_code} -ne 0 ]]; then
-      clishe_echo --red "\n[Error] ($*):"
-      cat "${__stderr}" >&2
+      clishe_echo --red "Command (${_cmd}) ends up with error ${_error_code}."
       return ${_error_code}
     fi
   else
-    clishe_echo --blue "[dry run] $*"
-  fi
-}
-
-function __fecho() {
-  local _fname="${1}"
-
-  shift
-  if [[ "${DRY_RUN:-}" ]]; then
-    clishe_echo --blue "[dry run] echo" "$@" '>' "${_fname}"
-  else
-    echo "$@" > "${_fname}"
+    clishe_echo --blue "[dry run] ${_cmd}"
   fi
 }
 
@@ -127,7 +122,7 @@ function __ensure_directory() {
 
 function __truncate() {
   __need_arg "${1:-}"
-  __fecho "${1}" -n ""
+  __runcmd --stdout "${1}" echo -n ""
 }
 
 function __source() {
@@ -422,11 +417,7 @@ function vmtools_vmssh() {
       "$@"
     )
 
-    if [[ "${DRY_RUN:-}" ]]; then
-      clishe_echo --blue "[dry run]" ssh "${_ssh_params[@]}"
-    else
-      ssh "${_ssh_params[@]}"
-    fi
+    __runcmd ssh "${_ssh_params[@]}"
   )
 }
 
@@ -457,16 +448,12 @@ function __wget_image() {
     clishe_error "Image $(__realpath "${_dest}") already exists."
   fi
 
-  if [[ "${DRY_RUN:-}" ]]; then
-    clishe_echo --blue "[dry run]" wget -O "${_dest}" "${1}"
+  __runcmd wget -O "${_dest}" "${1}" || _error_code=$?
+  if [[ ${_error_code} -eq 0 ]]; then
+    clishe_echo --green "Image ${_imgfile} successfully downloaded."
   else
-    wget -O "${_dest}" "${1}" || _error_code=$?
-    if [[ ${_error_code} -eq 0 ]]; then
-      clishe_echo --green "Image ${_imgfile} successfully downloaded."
-    else
-      clishe_error ${_error_code} \
-        "Attempt to get ${_imgfile} from ${1} has failed."
-    fi
+    clishe_error ${_error_code} \
+      "Attempt to get ${_imgfile} from ${1} has failed."
   fi
 }
 
@@ -621,12 +608,10 @@ function vmtools_vmstart() {
     # Launch qemu:
     set +e
     _qemu_ec=0
+    clishe_echo --blue "Launching VM ${1}..."
+    __runcmd "${_qemu_cmd}" "${_qemu_params[@]}" || _qemu_ec=$?
     if [[ "${DRY_RUN:-}" ]]; then
-      clishe_echo --blue "[dry run]" "${_qemu_cmd}" "${_qemu_params[@]}"
       return 0
-    else
-      clishe_echo --blue "Launching VM ${1}..."
-      "${_qemu_cmd}" "${_qemu_params[@]}" || _qemu_ec=$?
     fi
 
     _failmsg="Launching VM ${1} has failed. See ${_qemu_log} for details."
@@ -807,12 +792,7 @@ function vmtools_vmplay() {
 
     shift
 
-    if [[ "${DRY_RUN:-}" ]]; then
-      clishe_echo --blue "[dry run]" ansible-playbook -vv -u "${VMCFG_USER}" \
-        -i "${VMCFG_HOST}," -e "${_extra_vars}" "$@"
-    else
-      ansible-playbook -vv -u "${VMCFG_USER}" -i "${VMCFG_HOST}," \
-        -e "${_extra_vars}" "$@"
-    fi
+    __runcmd ansible-playbook -vv -u "${VMCFG_USER}" -i "${VMCFG_HOST}," \
+      -e "${_extra_vars}" "$@"
   )
 }
