@@ -36,8 +36,7 @@ function usage() {
 
 	${clishe_helplines}
 
-	Open an SSH session with \${VMNAME} so \${VMNAME} can be controlled
-	remotely.
+	Open an SSH session with VMNAME so VMNAME can be controlled remotely.
 	__USAGE__
   exit 0
 }

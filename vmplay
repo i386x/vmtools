@@ -37,7 +37,7 @@ function usage() {
 
 	${clishe_helplines}
 
-	Execute Ansible playbooks PLAYBK1, PLAYBK2, ... on \${VMNAME} virtual
+	Execute Ansible playbooks PLAYBK1, PLAYBK2, ... on VMNAME virtual
 	machine.
 	__USAGE__
   exit 0

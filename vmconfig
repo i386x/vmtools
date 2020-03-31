@@ -33,7 +33,7 @@ function usage() {
 
 	${clishe_helplines}
 
-	Open \${VMNAME}'s configuration for editing. An editor to be used for
+	Open VMNAME's configuration for editing. An editor to be used for
 	editing is read from VMTOOLS_EDITOR or EDITOR variable (default editor
 	is \`vi\`).
 	__USAGE__

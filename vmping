@@ -33,7 +33,7 @@ function usage() {
 
 	${clishe_helplines}
 
-	This command is useful for verifying SSH connection with \${VMNAME}.
+	This command is useful for verifying SSH connection with VMNAME.
 	__USAGE__
   exit 0
 }

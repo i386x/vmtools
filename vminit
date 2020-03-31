@@ -33,7 +33,7 @@ function usage() {
 
 	${clishe_helplines}
 
-	Create a directory inside ${__vmcachedir} named vm-\${VMNAME}. This
+	Create a directory inside ${__vmcachedir} named vm-VMNAME. This
 	directory serves as a storage for virtual machine configuration and
 	assets.
 	__USAGE__
