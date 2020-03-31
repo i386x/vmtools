@@ -34,7 +34,7 @@ vmtools-config
 
 Next, let get some images:
 ```
-vmtools-getimage URL MyImage.qcow2
+vmtools-getimage <URL> MyImage.qcow2
 ```
 
 Now, get to directory that work as your testing lab and initialize your first
@@ -44,10 +44,20 @@ cd testlab
 vminit myfirstvm
 ```
 
-Configure your `myfirstvm` and apply the changes with `vmupdate` (if you just
-provide image path, you do not need to run `vmupdate`):
+Configure your `myfirstvm`.
 ```
 vmconfig myfirstvm
+```
+
+To ensure that `myfirstvm` start, you must set the correct path to the image
+you get previosly with `vmtools-getimage`:
+```bash
+VMCFG_IMAGE="/home/yourusername/.vmtools/images/MyImage.qcow2"
+```
+
+Apply the changes made by `vmconfig` (if you just provided image path, you do
+not need to run `vmupdate`):
+```
 vmupdate myfirstvm
 ```
 
