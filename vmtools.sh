@@ -344,6 +344,10 @@ function __create_config_file() {
 
 	# VM network NIC model:
 	VMCFG_NET_NIC_MODEL="virtio"
+
+	# Path to the file with variables for Ansible playbooks:
+	VMCFG_ANSIBLE_VARS="\${VMCFG_IMAGE%.*}.yml"
+	export VMCFG_ANSIBLE_VARS
 	_EOF_
 }
 
