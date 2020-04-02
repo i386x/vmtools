@@ -417,7 +417,8 @@ function vmtools_vmssh() {
       -o "UserKnownHostsFile=/dev/null"
       -o "LogLevel=ERROR"
       -i "${VMCFG_ID_RSA}"
-      "${VMCFG_USER}@${VMCFG_HOST}"
+      -t
+      "${VMUSER:-${VMCFG_USER}}@${VMCFG_HOST}"
       "$@"
     )
 

@@ -19,6 +19,10 @@ PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
 clishe_init
 
 clishe_defopt VMNAME "a name of virtual machine"
+clishe_defopt --user=VMUSER -u -- "" optional <<__HELP__
+log in as VMUSER; in case of empty value or missing option, user name is read
+from VMCFG_USER
+__HELP__
 clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
 only print what should be done, do not perform anything
 __HELP__
@@ -28,10 +32,11 @@ an optional command that would be executed on guest
 __HELP__
 
 function usage() {
+  local _synopsis="[--user -u VMUSER | --dry-run | --help -h -?]"
   cat <<-__USAGE__
 	Establish SSH session with virtual machine.
 
-	Usage: ${clishe_scriptname} VMNAME [--dry-run | --help -h -?] [COMMAND]
+	Usage: ${clishe_scriptname} VMNAME ${_synopsis} [COMMAND]
 	where
 
 	${clishe_helplines}
@@ -43,4 +48,5 @@ function usage() {
 
 clishe_process_options "$@"
 
-DRY_RUN="${DRY_RUN:-}" vmtools_vmssh "${VMNAME}" "${clishe_tailopts[@]}"
+DRY_RUN="${DRY_RUN:-}" VMUSER="${VMUSER:-}" \
+vmtools_vmssh "${VMNAME}" "${clishe_tailopts[@]}"
