@@ -708,6 +708,7 @@ function __vmwait() {
   local _i=0
 
   while [[ ${_i} -lt ${2:-600} ]]; do
+    clishe_echo --blue "Waiting for VM ${1} to become halted #$(( _i + 1 ))."
     sleep 1
     __vmstatusq "${1}" || {
       clishe_echo --green "VM ${1} was successfully halted."
