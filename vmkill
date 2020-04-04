@@ -29,7 +29,7 @@ __HELP__
 clishe_defopt --help -h -? -- "print this screen and exit" help usage
 
 function usage() {
-  local _synopsis="VMNAME SIGSPEC [--dry-run | --help -h -?]"
+  local _synopsis="VMNAME SIGSPEC [--dry-run] [--help] [-h?]"
   cat <<-__USAGE__
 	Send a signal to virtual machine.
 

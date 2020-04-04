@@ -32,7 +32,7 @@ an optional command that would be executed on guest
 __HELP__
 
 function usage() {
-  local _synopsis="[--user -u VMUSER | --dry-run | --help -h -?]"
+  local _synopsis="[--user VMUSER] [-u VMUSER] [--dry-run] [--help] [-h?]"
   cat <<-__USAGE__
 	Establish SSH session with virtual machine.
 

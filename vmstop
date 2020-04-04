@@ -28,7 +28,7 @@ function usage() {
   cat <<-__USAGE__
 	Halt a virtual machine.
 
-	Usage: ${clishe_scriptname} VMNAME [--dry-run | --help -h -?]
+	Usage: ${clishe_scriptname} VMNAME [--dry-run] [--help] [-h?]
 	where
 
 	${clishe_helplines}

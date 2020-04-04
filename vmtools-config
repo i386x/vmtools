@@ -27,7 +27,7 @@ function usage() {
   cat <<-__USAGE__
 	Edit vmtools configuration.
 
-	Usage: ${clishe_scriptname} [--dry-run | --help -h -?]
+	Usage: ${clishe_scriptname} [--dry-run] [--help] [-h?]
 	where
 
 	${clishe_helplines}

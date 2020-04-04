@@ -28,7 +28,7 @@ a list of Ansible playbooks to be executed
 __HELP__
 
 function usage() {
-  local _synopsis="VMNAME [--dry-run | --help -h -?] PLAYBK1 [PLAYBK2 [...]]"
+  local _synopsis="VMNAME [--dry-run] [--help] [-h?] PLAYBK1 [PLAYBK2 [...]]"
   cat <<-__USAGE__
 	Run Ansible playbooks on virtual machine.
 

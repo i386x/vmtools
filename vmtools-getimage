@@ -25,7 +25,7 @@ clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
 only print what should be done, do not perform anything
 __HELP__
 clishe_defopt --help -h -? -- "print this screen and exit" help usage
-clishe_defopt "@ARGS..." "" <<__HELP__
+clishe_defopt "@ARG1 ARG2 ..." "" <<__HELP__
 additional arguments for a command that gets the image; conventionally, the
 first argument is a name of image file or a path where to save it (absolute or
 relative to image storage); if no file name of image is provided, it is deduced
@@ -33,7 +33,7 @@ from IMGLOC
 __HELP__
 
 function usage() {
-  local _synopsis="IMGLOC [--dry-run | --help -h -?] [ARGS...]"
+  local _synopsis="IMGLOC [--dry-run] [--help] [-h?] [ARG1 [ARG2 [...]]]"
   cat <<-__USAGE__
 	Get an image for virtual machine.
 
