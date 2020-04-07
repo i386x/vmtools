@@ -786,7 +786,9 @@ function vmtools_vmplay() {
     done
 
     _extra_vars=$(
-      echo -n "{\"ansible_port\":\"${VMCFG_PORT}\""
+      echo -n "{\"ansible_host\":\"${VMCFG_HOST}\""
+      echo -n ",\"ansible_port\":\"${VMCFG_PORT}\""
+      echo -n ",\"ansible_user\":\"${VMCFG_USER}\""
       echo -n ",\"ansible_ssh_pass\":\"${VMCFG_PASSWORD}\""
       echo -n ",\"ansible_ssh_private_key_file\":\"${_id_rsa}\""
       echo -n ",\"ansible_ssh_common_args\":\"${_ssh_common_args}\""
@@ -798,7 +800,6 @@ function vmtools_vmplay() {
 
     shift
 
-    __runcmd ansible-playbook -vvv -u "${VMCFG_USER}" -i "${VMCFG_HOST}," \
-      -e "${_extra_vars}" "$@"
+    __runcmd ansible-playbook -vvv -i "${VMCFG_HOST}," -e "${_extra_vars}" "$@"
   )
 }
