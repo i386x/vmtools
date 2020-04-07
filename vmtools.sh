@@ -798,7 +798,7 @@ function vmtools_vmplay() {
 
     shift
 
-    __runcmd ansible-playbook -vv -u "${VMCFG_USER}" -i "${VMCFG_HOST}," \
+    __runcmd ansible-playbook -vvv -u "${VMCFG_USER}" -i "${VMCFG_HOST}," \
       -e "${_extra_vars}" "$@"
   )
 }
