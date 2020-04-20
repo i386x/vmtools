@@ -798,8 +798,19 @@ function vmtools_vmplay() {
       echo -n "}"
     )
 
+    _verbosity_level="${V:-0}"
+    _v=""
+    while [[ ${_verbosity_level} -gt 0 ]]; do
+      _v="${_v}v"
+      _verbosity_level=$(( _verbosity_level - 1 ))
+    done
+    if [[ "${_v}" ]]; then
+      _v="-${_v}"
+    fi
+
     shift
 
-    __runcmd ansible-playbook -vvv -i "${VMCFG_HOST}," -e "${_extra_vars}" "$@"
+    __runcmd ansible-playbook \
+      ${_v} -i "${VMCFG_HOST}," -e "${_extra_vars}" "$@"
   )
 }
