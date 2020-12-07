@@ -340,14 +340,13 @@ function __create_config_file() {
 	VMCFG_RSA_KEY_PASSPHRASE=""
 
 	# VM memory size:
-	VMCFG_MEMSIZE="2048"
+	VMCFG_MEMSIZE="4096"
 
 	# VM network NIC model:
 	VMCFG_NET_NIC_MODEL="virtio"
 
-	# Path to the file with variables for Ansible playbooks:
-	VMCFG_ANSIBLE_VARS="\${VMCFG_IMAGE%.*}.yml"
-	export VMCFG_ANSIBLE_VARS
+	# Path to the Ansible playbook to setup virtual machine:
+	VMCFG_SETUP_YML="\${VMCFG_IMAGE%.*}.yml"
 	_EOF_
 }
 
@@ -812,5 +811,34 @@ function vmtools_vmplay() {
 
     __runcmd ansible-playbook \
       ${_v} -i "${VMCFG_HOST}," -e "${_extra_vars}" "$@"
+  )
+}
+
+# -----------------------------------------------------------------------------
+# -- 10) Setup
+# -----------------------------------------------------------------------------
+
+function vmtools_vmsetup() {
+  __need_arg "${1:-}"
+  (
+    __source "$(__configpath "${1}")"
+
+    _vmname="${1}"
+
+    shift
+
+    declare -a _playbooks=( "$@" )
+
+    if [[ -z "${1:-}" ]]; then
+      if [[ -z "${VMCFG_SETUP_YML:-}" ]]; then
+        clishe_echo --red \
+          "Ansible playbook is not provided or VMCFG_SETUP_YML is not set in" \
+          "${_vmname}'s config."
+        return 1
+      fi
+      _playbooks+=( "${VMCFG_SETUP_YML}" )
+    fi
+
+    vmtools_vmplay "${_vmname}" "${_playbooks[@]}"
   )
 }

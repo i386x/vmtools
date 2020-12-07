@@ -82,5 +82,6 @@ There are plenty of other useful commands:
 * `vmkill` to send a signal to the process running the virtual machine
 * `vmstatus` to check whether virtual machine is active or halted
 * `vmplay` to run a set of Ansible playbooks
+* `vmsetup` to setup the virtual machine
 
 Have fun!

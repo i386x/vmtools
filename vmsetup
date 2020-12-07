@@ -1,0 +1,55 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+#
+# File:    vmsetup
+# Author:  Jiří Kučera, <sanczes@gmail.com>
+# Date:    2020-12-07 16:26:19 +0100
+# Project: Virtual Machine Tools (vmtools)
+# Brief:   Setup virtual machine.
+#
+
+set -euo pipefail
+
+PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
+. vmtools.sh >/dev/null 2>&1 || {
+  echo "I can't see vmtools.sh. Are vmtools installed?" >&2
+  exit 1
+}
+
+clishe_init
+
+clishe_defopt VMNAME "a name of virtual machine"
+clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
+only print what should be done, do not perform anything
+__HELP__
+clishe_defopt --help -h -? -- "print this screen and exit" help usage
+clishe_defopt --verbose -v -- "" V <<__HELP__
+set verbosity level (more --verbose options given means more verbosity)
+__HELP__
+clishe_defopt "@PLAYBK1 PLAYBK2 ..." "" <<__HELP__
+a list of Ansible playbooks to be executed; if no playbook is given,
+VMCFG_SETUP_YML from virtual machine's config is read
+__HELP__
+
+function usage() {
+  local _synopsis="VMNAME [--dry-run] [--help] [-h?] [--verbose] [-v]"
+  _synopsis="${_synopsis} [PLAYBK1 [PLAYBK2 [...]]]"
+  cat <<-__USAGE__
+	Setup the virtual machine.
+
+	Usage: ${clishe_scriptname} ${_synopsis}
+	where
+
+	${clishe_helplines}
+
+	Setup VMNAME virtual machine by executing PLAYBK1, PLAYBK2, ... or
+	by executing VMCFG_SETUP_YML from VMNAME's config if no Ansible
+	playbook was given.
+	__USAGE__
+  exit 0
+}
+
+clishe_process_options "$@"
+
+DRY_RUN="${DRY_RUN:-}" V="${V}" vmtools_vmsetup "${VMNAME}" \
+  "${clishe_tailopts[@]}"

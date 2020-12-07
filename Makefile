@@ -9,8 +9,9 @@
 
 include ./common.mk
 
-SCRIPTS := vmconfig vminit vmkill vmping vmplay vmssh vmstart vmstatus vmstop \
-           vmupdate vmtools-config vmtools-getimage vmtools-setup
+SCRIPTS := vmconfig vminit vmkill vmping vmplay vmsetup vmssh vmstart \
+           vmstatus vmstop vmupdate vmtools-config vmtools-getimage \
+           vmtools-setup
 LIBRARY := vmtools.sh
 
 .PHONY: all install check
