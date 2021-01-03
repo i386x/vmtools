@@ -16,9 +16,13 @@ PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
 
 __wd="${PWD:-$(pwd)}"
 
-__vmtoolslocaldir="${HOME}/.vmtools"
+__userhome="${HOME}"
+__userhome_lit="\${HOME}"
+__vmtoolslocaldir="${__userhome}/.vmtools"
+__vmtoolslocaldir_lit="${__userhome_lit}/.vmtools"
 __vmtoolsconfig="${__vmtoolslocaldir}/config"
 __vmtoolsimagesdir="${__vmtoolslocaldir}/images"
+__vmtoolsimagesdir_lit="${__vmtoolslocaldir_lit}/images"
 __vmcachedir=".vmcache"
 __artifactsdir="artifacts"
 __guest_log="guest.log"
@@ -40,6 +44,10 @@ function __workspacepath() {
 
 function __configpath() {
   echo -n "$(__workspacepath "${1}")/config"
+}
+
+function __gitignorepath() {
+  echo -n "$(__workspacepath "${1}")/.gitignore"
 }
 
 function __artifactspath() {
@@ -301,9 +309,13 @@ function vmtools_init_config() {
 
   __need_arg "${1:-}"
   _config="$(__configpath "${1}")"
+  _gitignore="$(__gitignorepath "${1}")"
   __checkpidfile "${1}"
   if [[ ! -s "${_config}" ]]; then
     __runcmd __create_config_file "${_config}" "${1}"
+  fi
+  if [[ ! -s "${_gitignore}" ]]; then
+    __runcmd __create_gitignore "${_gitignore}"
   fi
 }
 
@@ -313,7 +325,7 @@ function __create_config_file() {
 	# the lines below.
 
 	# Path to image (absolute or relative to working directory):
-	VMCFG_IMAGE="${__vmtoolsimagesdir}"
+	VMCFG_IMAGE="${__vmtoolsimagesdir_lit}"
 
 	# User:
 	VMCFG_USER="root"
@@ -347,6 +359,14 @@ function __create_config_file() {
 
 	# Path to the Ansible playbook to setup virtual machine:
 	VMCFG_SETUP_YML="\${VMCFG_IMAGE%.*}.yml"
+	_EOF_
+}
+
+function __create_gitignore() {
+  cat > "${1}" <<-_EOF_
+	*
+	!.gitignore
+	!config
 	_EOF_
 }
 
