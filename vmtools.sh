@@ -469,7 +469,8 @@ function __wget_image() {
   local _imgfile="${_dest##*/}"
 
   if [[ -f "${_dest}" ]]; then
-    clishe_error "Image $(__realpath "${_dest}") already exists."
+    clishe_echo --blue "Image $(__realpath "${_dest}") already exists."
+    return
   fi
 
   __runcmd wget -O "${_dest}" "${1}" || _error_code=$?
@@ -481,11 +482,116 @@ function __wget_image() {
   fi
 }
 
+function __cisy_warn() {
+  clishe_echo --yellow "${1} Please create your image setup playbook manually."
+}
+
+function __create_image_setup_yml() {
+  local _url_parts="${1}"
+  local _image="${2##*/}"
+  local _hub=""
+  local _release=""
+  local _composever=""
+  local _template=""
+  local _arch=""
+
+  # Guess the hub
+  if [[ "${_url_parts}" =~ ^([[:alpha:]]+://[^/]+)/(.*)$ ]]; then
+    _hub="${BASH_REMATCH[1]}"
+    _url_parts="${BASH_REMATCH[2]}"
+  else
+    __cisy_warn "URL <${1}> has invalid format."
+    return
+  fi
+
+  # Guess the release and compose version
+  if [[ "${_url_parts}" =~ ^released/[^/]+/([^/]+)/.*$ ]]; then
+    _release="${BASH_REMATCH[1]}"
+    _template="rhel-released-setup"
+  elif [[ "${_url_parts}" =~ ^[^/]+/composes/[^/]+/([^/]+)/.*$ ]]; then
+    _composever="${BASH_REMATCH[1]}"
+    _template="rhel-compose-setup"
+  else
+    __cisy_warn "Release or compose version cannot be guessed from <${1}>."
+    return
+  fi
+
+  # Guess the release from the compose id
+  if [[ -z "${_release}" ]]; then
+    if [[ "${_composever}" =~ ^RHEL-([^-]+)-(.+)$ ]]; then
+      _release="${BASH_REMATCH[1]}"
+      _composever="${BASH_REMATCH[2]}"
+    else
+      __cisy_warn "Can't guess release from compose id."
+    fi
+  fi
+
+  # Verify that the release has valid form (hopefully this could catch changes
+  # in the hub's layout)
+  [[ "${_release}" =~ ^[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+$ ]] || {
+    __cisy_warn "Release string '${_release}' has invalid form."
+    return
+  }
+
+  # Add -alpha, -beta, etc. to the release
+  if [[ "${3:-}" ]]; then
+    _release="${_release}-${3}"
+  fi
+
+  # Guess architecture from the image name
+  _arch="${_image%.*}"
+  _arch="${_arch##*.}"
+
+  # Verify the architecture
+  [[ "${_arch}" =~ ^(aarch64|ppc64le|s390x|x86_64)$ ]] || {
+    __cisy_warn "Unknown architecture '${_arch}'."
+    return
+  }
+
+  # Prepare parameters
+  _extra_vars=$(
+    echo -n "{\"pkmaint_task\":\"create_image_setup\""
+    echo -n ",\"pkmaint_imagebase\":\"${_image%.*}\""
+    echo -n ",\"pkmaint_image_setup_template\":\"${_template}\""
+    echo -n ",\"hub\":\"${_hub}\""
+    echo -n ",\"release\":\"${_release}\""
+    echo -n ",\"composever\":\"${_composever}\""
+    echo -n ",\"arch\":\"${_arch}\""
+    echo -n "}"
+  )
+
+  # Generate the setup playbook
+  __runcmd ansible all -c local -i localhost, \
+    -m import_role -a 'name=pkmaint' -e "${_extra_vars}" \
+  || __cisy_warn "Creating ${_image%.*}.yml has failed."
+}
+
 function vmtools_get_image_cmd() {
+  local _dest=""
+  local _release_phase=""
+
   __need_arg "${1:-}"
 
   if [[ "${1}" =~ ^[[:alpha:]]+:.*$ ]]; then
-    __wget_image "${1}" "${2:-${1##*/}}"
+    case $# in
+      1)
+        _dest="${1##*/}"
+        ;;
+      2)
+        if [[ "${2}" == *.qcow2 ]]; then
+          _dest="${2}"
+        else
+          _dest="${1##*/}"
+          _release_phase="${2}"
+        fi
+        ;;
+      *)
+        _dest="${2}"
+        _release_phase="${3}"
+        ;;
+    esac
+    __wget_image "${1}" "${_dest}"
+    __create_image_setup_yml "${1}" "${_dest}" "${_release_phase}"
   else
     __copy_image "${1}" "${2:-.}"
   fi
@@ -804,6 +910,8 @@ function vmtools_vmplay() {
       fi
     done
 
+    shift
+
     _extra_vars=$(
       echo -n "{\"ansible_host\":\"${VMCFG_HOST}\""
       echo -n ",\"ansible_port\":\"${VMCFG_PORT}\""
@@ -814,6 +922,10 @@ function vmtools_vmplay() {
       if [[ "${_python}" ]]; then
         echo -n ",\"ansible_python_interpreter\":\"${_python}\""
       fi
+      while [[ "${1:-}" =~ ^([^=]+)=(.+)$ ]]; do
+        echo -n ",\"${BASH_REMATCH[1]}\":\"${BASH_REMATCH[2]}\""
+        shift
+      done
       echo -n "}"
     )
 
@@ -826,8 +938,6 @@ function vmtools_vmplay() {
     if [[ "${_v}" ]]; then
       _v="-${_v}"
     fi
-
-    shift
 
     __runcmd ansible-playbook \
       ${_v} -i "${VMCFG_HOST}," -e "${_extra_vars}" "$@"
@@ -847,7 +957,11 @@ function vmtools_vmsetup() {
 
     shift
 
-    declare -a _playbooks=( "$@" )
+    declare -a _posargs=()
+    while [[ "${1:-}" == *=* ]]; do
+      _posargs+=( "${1}" )
+      shift
+    done
 
     if [[ -z "${1:-}" ]]; then
       if [[ -z "${VMCFG_SETUP_YML:-}" ]]; then
@@ -856,9 +970,11 @@ function vmtools_vmsetup() {
           "${_vmname}'s config."
         return 1
       fi
-      _playbooks+=( "${VMCFG_SETUP_YML}" )
+      _posargs+=( "${VMCFG_SETUP_YML}" )
+    else
+      _posargs+=( "$@" )
     fi
 
-    vmtools_vmplay "${_vmname}" "${_playbooks[@]}"
+    vmtools_vmplay "${_vmname}" "${_posargs[@]}"
   )
 }

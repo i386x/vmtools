@@ -26,13 +26,14 @@ clishe_defopt --help -h -? -- "print this screen and exit" help usage
 clishe_defopt --verbose -v -- "" V <<__HELP__
 set verbosity level (more --verbose options given means more verbosity)
 __HELP__
-clishe_defopt "@PLAYBK1 PLAYBK2 ..." "" <<__HELP__
-a list of Ansible playbooks to be executed
+clishe_defopt "@VAR1=VAL1 ... PLAYBK1 PLAYBK2 ..." "" <<__HELP__
+a list if extra variables followed by a list of Ansible playbooks to be
+executed
 __HELP__
 
 function usage() {
   local _synopsis="VMNAME [--dry-run] [--help] [-h?] [--verbose] [-v]"
-  _synopsis="${_synopsis} PLAYBK1 [PLAYBK2 [...]]"
+  _synopsis="${_synopsis} [VAR1=VAL1 [...]] PLAYBK1 [PLAYBK2 [...]]"
   cat <<-__USAGE__
 	Run Ansible playbooks on virtual machine.
 
@@ -42,7 +43,7 @@ function usage() {
 	${clishe_helplines}
 
 	Execute Ansible playbooks PLAYBK1, PLAYBK2, ... on VMNAME virtual
-	machine.
+	machine with VAR1=VAL1 ... extra variables passed to them.
 	__USAGE__
   exit 0
 }
