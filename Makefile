@@ -9,7 +9,7 @@
 
 include ./common.mk
 
-SCRIPTS := vmconfig vminit vmkill vmping vmplay vmsetup vmssh vmstart \
+SCRIPTS := vmconfig vminit vmkill vmping vmplay vmscp vmsetup vmssh vmstart \
            vmstatus vmstop vmupdate vmtools-config vmtools-getimage \
            vmtools-setup
 LIBRARY := vmtools.sh

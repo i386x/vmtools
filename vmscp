@@ -1,0 +1,55 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+#
+# File:    vmscp
+# Author:  Jiří Kučera, <sanczes@gmail.com>
+# Date:    2021-03-10 11:51:46 +0100
+# Project: Virtual Machine Tools (vmtools)
+# Brief:   Perform a secure copy to/from virtual machine.
+#
+
+set -euo pipefail
+
+PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
+. vmtools.sh >/dev/null 2>&1 || {
+  echo "I can't see vmtools.sh. Are vmtools installed?" >&2
+  exit 1
+}
+
+clishe_init
+
+clishe_defopt VMNAME "a name of virtual machine"
+clishe_defopt --user=VMUSER -u -- "" optional <<__HELP__
+log in as VMUSER; in case of empty value or missing option, user name is read
+from VMCFG_USER
+__HELP__
+clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
+only print what should be done, do not perform anything
+__HELP__
+clishe_defopt --help -h -? -- "print this screen and exit" help usage
+clishe_defopt "@SOURCE TARGET" "" <<__HELP__
+source and target destination; to denote that source or target is on virtual
+machine, prefix source or target with @
+__HELP__
+
+function usage() {
+  local _synopsis="[--user VMUSER] [-u VMUSER] [--dry-run] [--help] [-h?]"
+  cat <<-__USAGE__
+	Perform a secure copy to or from the virtual machine.
+
+	Usage: ${clishe_scriptname} VMNAME ${_synopsis} SOURCE TARGET
+	where
+
+	${clishe_helplines}
+
+	Copy a file using SSH protocol from SOURCE to TARGET. If SOURCE or
+	TARGET begins with @, it means that SOURCE or TARGET is on VMNAME
+	virtual machine.
+	__USAGE__
+  exit 0
+}
+
+clishe_process_options "$@"
+
+DRY_RUN="${DRY_RUN:-}" VMUSER="${VMUSER:-}" \
+vmtools_vmscp "${VMNAME}" "${clishe_tailopts[@]}"

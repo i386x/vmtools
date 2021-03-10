@@ -385,7 +385,7 @@ function vmtools_edit_config() {
 }
 
 # -----------------------------------------------------------------------------
-# -- 5) SSH
+# -- 5) SSH & SCP
 # -----------------------------------------------------------------------------
 
 function vmtools_genkeys() {
@@ -411,12 +411,14 @@ function vmtools_genkeys() {
   )
 }
 
-function vmtools_vmssh() {
+function vmtools_vmsxx() {
+  local _sxx=""
   local _vmname=""
 
-  __need_arg "${1:-}"
-  _vmname="${1}"
-  shift
+  __need_arg "${2:-}"
+  _sxx="${1}"
+  _vmname="${2}"
+  shift 2
   (
     __source "$(__configpath "${_vmname}")"
 
@@ -429,20 +431,46 @@ function vmtools_vmssh() {
 
     __need_file "${VMCFG_ID_RSA}"
 
-    declare -a _ssh_params
-    _ssh_params=(
-      -p "${VMCFG_PORT}"
+    declare -a _sxx_params=()
+    if [[ "${_sxx}" == scp ]]; then
+      _sxx_params+=( -P )
+    else
+      _sxx_params+=( -p )
+    fi
+    _sxx_params+=(
+      "${VMCFG_PORT}"
       -o "StrictHostKeyChecking=no"
       -o "UserKnownHostsFile=/dev/null"
       -o "LogLevel=ERROR"
       -i "${VMCFG_ID_RSA}"
-      -t
-      "${VMUSER:-${VMCFG_USER}}@${VMCFG_HOST}"
-      "$@"
     )
+    if [[ "${_sxx}" == ssh ]]; then
+      _sxx_params+=(
+        -t
+        "${VMUSER:-${VMCFG_USER}}@${VMCFG_HOST}"
+        "$@"
+      )
+    else
+      while [[ "${1:-}" ]]; do
+        if [[ "${1}" == @* ]]; then
+          _sxx_params+=( "${VMUSER:-${VMCFG_USER}}@${VMCFG_HOST}:${1:1}" )
+        else
+          _sxx_params+=( "${1}" )
+        fi
+        shift
+      done
+    fi
 
-    __runcmd ssh "${_ssh_params[@]}"
+    __runcmd "${_sxx}" "${_sxx_params[@]}"
   )
+}
+
+function vmtools_vmssh() {
+  vmtools_vmsxx ssh "$@"
+}
+
+function vmtools_vmscp() {
+  vmtools_vmsxx scp "$@"
 }
 
 function vmtools_vmping() {
