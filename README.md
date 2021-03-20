@@ -10,6 +10,7 @@ on operating systems without touching the host. Virtual machines are running in
 * `qemu-kvm`
 * `genisoimage`
 * `netstat` (from `net-tools`) or `ss` (from `iproute`)
+* `curl`
 * `wget`
 * `ssh`
 * [`clishe`](https://github.com/i386x/clishe) v0.02 or later

@@ -533,7 +533,9 @@ function __create_image_setup_yml() {
   fi
 
   # Guess the release and compose version
-  if [[ "${_url_parts}" =~ ^released/[^/]+/([^/]+)/.*$ ]]; then
+  if [[ "${_url_parts}" == */fedora/* ]]; then
+    _template="fedora-setup"
+  elif [[ "${_url_parts}" =~ ^released/[^/]+/([^/]+)/.*$ ]]; then
     _release="${BASH_REMATCH[1]}"
     _template="rhel-released-setup"
   elif [[ "${_url_parts}" =~ ^[^/]+/composes/[^/]+/([^/]+)/.*$ ]]; then
@@ -546,7 +548,11 @@ function __create_image_setup_yml() {
 
   # Guess the release from the compose id
   if [[ -z "${_release}" ]]; then
-    if [[ "${_composever}" =~ ^RHEL-([^-]+)-(.+)$ ]]; then
+    if [[ "${_image}" =~ ^Fedora-Cloud-Base-([[:digit:]]+|Rawhide)-.*$ ]]; then
+      _release="${BASH_REMATCH[1],,}"
+      [[ -z "${_release}" ]] \
+      && __cisy_warn "Can't guess release from Fedora image name."
+    elif [[ "${_composever}" =~ ^RHEL-([^-]+)-(.+)$ ]]; then
       _release="${BASH_REMATCH[1]}"
       _composever="${BASH_REMATCH[2]}"
     else
@@ -556,7 +562,9 @@ function __create_image_setup_yml() {
 
   # Verify that the release has valid form (hopefully this could catch changes
   # in the hub's layout)
-  [[ "${_release}" =~ ^[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+$ ]] || {
+  [[ "${_release}" =~ ^[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+$ ]] \
+  || [[ "${_release}" =~ ^[[:digit:]]+|rawhide$ ]] \
+  || {
     __cisy_warn "Release string '${_release}' has invalid form."
     return
   }
@@ -594,22 +602,65 @@ function __create_image_setup_yml() {
   || __cisy_warn "Creating ${_image%.*}.yml has failed."
 }
 
+function __find_qcow2_image() {
+  local _result=""
+
+  while read -r _line; do
+    if [[ "${_line}" =~ ^\ *\<a\ +href=\"(.+)\"\ *\>.*$ ]]; then
+      _result="${BASH_REMATCH[1]}"
+      if [[ "${_result}" == *.qcow2 ]]; then
+        echo "${1}/${_result}"
+        break
+      fi
+    fi
+  done < <(curl -k -L "${1}" 2>&1)
+}
+
 function vmtools_get_image_cmd() {
+  local _src="${1:-}"
   local _dest=""
+  local _version=""
+  local _arch=""
   local _release_phase=""
 
-  __need_arg "${1:-}"
+  __need_arg "${_src}"
 
-  if [[ "${1}" =~ ^[[:alpha:]]+:.*$ ]]; then
+  # fedora-<release>(.<arch>)?
+  if [[ "${_src}" =~ ^fedora-([[:digit:]]+|n|N)(\..+)?$ ]]; then
+    _arch="${BASH_REMATCH[2]:-.x86_64}"
+    _arch="${_arch:1}"
+    if [[ "${BASH_REMATCH[1]}" == [nN] ]]; then
+      _version="rawhide"
+    else
+      _version="${BASH_REMATCH[1]}"
+    fi
+    for _x in releases development; do
+      _src="https://download.fedoraproject.org/pub/fedora/linux"
+      _src="${_src}/${_x}/${_version}/Cloud/${_arch}/images"
+      clishe_echo -n --blue "Trying ${_src}"
+      _src="$(__find_qcow2_image "${_src}")"
+      if [[ "${_src}" ]]; then
+        clishe_echo --green " [OK]"
+        break
+      else
+        clishe_echo --red " [FAILED]"
+      fi
+    done
+    if [[ -z "${_src}" ]]; then
+      return 1
+    fi
+  fi
+
+  if [[ "${_src}" =~ ^[[:alpha:]]+:.*$ ]]; then
     case $# in
       1)
-        _dest="${1##*/}"
+        _dest="${_src##*/}"
         ;;
       2)
         if [[ "${2}" == *.qcow2 ]]; then
           _dest="${2}"
         else
-          _dest="${1##*/}"
+          _dest="${_src##*/}"
           _release_phase="${2}"
         fi
         ;;
@@ -618,10 +669,10 @@ function vmtools_get_image_cmd() {
         _release_phase="${3}"
         ;;
     esac
-    __wget_image "${1}" "${_dest}"
-    __create_image_setup_yml "${1}" "${_dest}" "${_release_phase}"
+    __wget_image "${_src}" "${_dest}"
+    __create_image_setup_yml "${_src}" "${_dest}" "${_release_phase}"
   else
-    __copy_image "${1}" "${2:-.}"
+    __copy_image "${_src}" "${2:-.}"
   fi
 }
 
