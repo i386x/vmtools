@@ -35,15 +35,10 @@ function __verify_version() {
 }
 
 function __find_qcow2_image() {
-  local _result=""
-
   while read -r _line; do
-    if [[ "${_line}" =~ ^.*\<a\ +href=\"(.+)\"\ *\>.*$ ]]; then
-      _result="${BASH_REMATCH[1]}"
-      if [[ "${_result}" == *.qcow2 ]]; then
-        echo -n "${1}/${_result}"
-        break
-      fi
+    if [[ "${_line}" =~ \<a\ +href=\"([^\"]+\.qcow2)\"\ *\> ]]; then
+      echo -n "${1}/${BASH_REMATCH[1]}"
+      break
     fi
   done < <(curl -k -L "${1}" 2>&1)
 }
