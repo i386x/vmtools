@@ -1,14 +1,22 @@
 #!/bin/bash
-# SPDX-License-Identifier: MIT
 #
-# File:    vmconfig
-# Author:  Jiří Kučera, <sanczes@gmail.com>
+# File:    ./vmconfig
+# Author:  Jiří Kučera <sanczes AT gmail.com>
 # Date:    2020-03-28 17:42:55 +0100
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Edit virtual machine's configuration.
+# Brief:   Edit virtual machine's configuration
+#
+# SPDX-License-Identifier: MIT
 #
 
 set -euo pipefail
+
+# shellcheck source=/usr/local/share/clishe/clishe.sh
+PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
+. clishe.sh >/dev/null 2>&1 || {
+  echo "clishe library is not installed!" >&2
+  exit 1
+}
 
 PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
 . vmtools.sh >/dev/null 2>&1 || {
@@ -34,8 +42,8 @@ function usage() {
 	${clishe_helplines}
 
 	Open VMNAME's configuration for editing. An editor to be used for
-	editing is read from VMTOOLS_EDITOR or EDITOR variable (default editor
-	is \`vi\`).
+	editing is read from VMTOOLS_EDITOR with fallback to EDITOR variable
+	(default editor is \`vi\`).
 	__USAGE__
   exit 0
 }

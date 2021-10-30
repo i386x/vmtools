@@ -8,7 +8,7 @@ on operating systems without touching the host. Virtual machines are running in
 ## Requirements
 
 * `qemu-kvm`
-* `genisoimage`
+* `mkisofs`
 * `netstat` (from `net-tools`) or `ss` (from `iproute`)
 * `curl`
 * `wget`
@@ -35,28 +35,26 @@ vmtools-config
 
 Next, let get some images:
 ```
-vmtools-getimage <URL> MyImage.qcow2
+vmtools-getimage <URL> MyImage
 ```
 
-Now, get to directory that work as your testing lab and initialize your first
-virtual machine here:
+Now, create your first virtual machine:
 ```
-cd testlab
 vminit myfirstvm
 ```
 
-Configure your `myfirstvm`.
+Configure your `myfirstvm`:
 ```
 vmconfig myfirstvm
 ```
 
-To ensure that `myfirstvm` start, you must set the correct path to the image
-you get previosly with `vmtools-getimage`:
+To ensure that `myfirstvm` start, you must set `VMCFG_IMAGE` to the image name
+previously pulled with `vmtools-getimage`:
 ```bash
-VMCFG_IMAGE="/home/yourusername/.vmtools/images/MyImage.qcow2"
+VMCFG_IMAGE="MyImage"
 ```
 
-Apply the changes made by `vmconfig` (if you just provided image path, you do
+Apply the changes made by `vmconfig` (if you just provided image name, you do
 not need to run `vmupdate`):
 ```
 vmupdate myfirstvm

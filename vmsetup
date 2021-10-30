@@ -1,14 +1,22 @@
 #!/bin/bash
-# SPDX-License-Identifier: MIT
 #
-# File:    vmsetup
-# Author:  Jiří Kučera, <sanczes@gmail.com>
+# File:    ./vmsetup
+# Author:  Jiří Kučera <sanczes AT gmail.com>
 # Date:    2020-12-07 16:26:19 +0100
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Setup virtual machine.
+# Brief:   Setup virtual machine
+#
+# SPDX-License-Identifier: MIT
 #
 
 set -euo pipefail
+
+# shellcheck source=/usr/local/share/clishe/clishe.sh
+PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
+. clishe.sh >/dev/null 2>&1 || {
+  echo "clishe library is not installed!" >&2
+  exit 1
+}
 
 PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
 . vmtools.sh >/dev/null 2>&1 || {
@@ -28,8 +36,8 @@ set verbosity level (more --verbose options given means more verbosity)
 __HELP__
 clishe_defopt "@VAR1=VAL1 ... PLAYBK1 PLAYBK2 ..." "" <<__HELP__
 a list of extra variables followed by a list of Ansible playbooks to be
-executed; if no playbook is given, VMCFG_SETUP_YML from virtual machine's
-config is read
+executed; if no playbook is given, it is deduced from the image name and looked
+for in the image directory (${__vmtoolsimagesdir})
 __HELP__
 
 function usage() {
@@ -44,8 +52,8 @@ function usage() {
 	${clishe_helplines}
 
 	Setup VMNAME virtual machine by executing PLAYBK1, PLAYBK2, ... or
-	by executing VMCFG_SETUP_YML from VMNAME's config---if no Ansible
-	playbook was given---with VAR1=VAL1 ... extra variables passed to them.
+	by executing deduced playbook from ${__vmtoolsimagesdir} (if no Ansible
+	playbook was given) with VAR1=VAL1 ... extra variables passed to them.
 	__USAGE__
   exit 0
 }

@@ -1,10 +1,11 @@
-# SPDX-License-Identifier: MIT
 #
-# File:    common.mk
-# Author:  Jiří Kučera, <sanczes@gmail.com>
+# File:    ./common.mk
+# Author:  Jiří Kučera <sanczes AT gmail.com>
 # Date:    2020-03-29 12:35:27 +0200
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Variables and settings shared across Makefiles.
+# Brief:   Variables and settings shared across Makefiles
+#
+# SPDX-License-Identifier: MIT
 #
 
 NAME := vmtools

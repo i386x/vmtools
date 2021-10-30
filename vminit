@@ -1,14 +1,22 @@
 #!/bin/bash
-# SPDX-License-Identifier: MIT
 #
-# File:    vminit
-# Author:  Jiří Kučera, <sanczes@gmail.com>
+# File:    ./vminit
+# Author:  Jiří Kučera <sanczes AT gmail.com>
 # Date:    2020-03-24 13:53:52 +0100
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Initialize virtual machine work space.
+# Brief:   Create and initialize virtual machine
+#
+# SPDX-License-Identifier: MIT
 #
 
 set -euo pipefail
+
+# shellcheck source=/usr/local/share/clishe/clishe.sh
+PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
+. clishe.sh >/dev/null 2>&1 || {
+  echo "clishe library is not installed!" >&2
+  exit 1
+}
 
 PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
 . vmtools.sh >/dev/null 2>&1 || {
@@ -26,14 +34,14 @@ clishe_defopt --help -h -? -- "print this screen and exit" help usage
 
 function usage() {
   cat <<-__USAGE__
-	Initialize virtual machine work space.
+	Create and initialize virtual machine.
 
 	Usage: ${clishe_scriptname} VMNAME [--dry-run] [--help] [-h?]
 	where
 
 	${clishe_helplines}
 
-	Create a directory inside ${__vmcachedir} named vm-VMNAME. This
+	Create a directory inside ${__vmtoolsvmsdir} named vm-VMNAME. This
 	directory serves as a storage for virtual machine configuration and
 	assets.
 	__USAGE__

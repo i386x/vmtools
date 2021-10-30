@@ -1,14 +1,22 @@
 #!/bin/bash
-# SPDX-License-Identifier: MIT
 #
-# File:    vmtools-config
-# Author:  Jiří Kučera, <sanczes@gmail.com>
+# File:    ./vmtools-config
+# Author:  Jiří Kučera <sanczes AT gmail.com>
 # Date:    2020-03-28 17:05:32 +0100
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Edit vmtools configuration.
+# Brief:   Edit vmtools configuration
+#
+# SPDX-License-Identifier: MIT
 #
 
 set -euo pipefail
+
+# shellcheck source=/usr/local/share/clishe/clishe.sh
+PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
+. clishe.sh >/dev/null 2>&1 || {
+  echo "clishe library is not installed!" >&2
+  exit 1
+}
 
 PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
 . vmtools.sh >/dev/null 2>&1 || {
@@ -32,8 +40,8 @@ function usage() {
 
 	${clishe_helplines}
 
-	Open vmtools configuration in the editor specified by VMTOOLS_EDITOR or
-	EDITOR variable (default is \`vi\`).
+	Open vmtools configuration in the editor specified by VMTOOLS_EDITOR
+	with fallback to EDITOR variable (default is \`vi\`).
 	__USAGE__
   exit 0
 }

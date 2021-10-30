@@ -1,10 +1,11 @@
-# SPDX-License-Identifier: MIT
 #
-# File:    Makefile
-# Author:  Jiří Kučera, <sanczes@gmail.com>
+# File:    ./Makefile
+# Author:  Jiří Kučera <sanczes AT gmail.com>
 # Date:    2020-03-29 11:46:31 +0200
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Makefile for project maintenance.
+# Brief:   Makefile for project maintenance
+#
+# SPDX-License-Identifier: MIT
 #
 
 include ./common.mk
@@ -12,7 +13,7 @@ include ./common.mk
 SCRIPTS := vmconfig vminit vmkill vmping vmplay vmscp vmsetup vmssh vmstart \
            vmstatus vmstop vmupdate vmtools-config vmtools-getimage \
            vmtools-setup
-LIBRARY := vmtools.sh
+LIBRARY := vmtools.sh getimage.sh
 
 .PHONY: all install check
 

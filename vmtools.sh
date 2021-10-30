@@ -1,29 +1,18 @@
-# SPDX-License-Identifier: MIT
 #
-# File:    vmtools.sh
-# Author:  Jiří Kučera, <sanczes@gmail.com>
+# File:    ./vmtools.sh
+# Author:  Jiří Kučera <sanczes AT gmail.com>
 # Date:    2020-03-24 17:36:00 +0100
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   vmtools shell library.
+# Brief:   vmtools shell library
+#
+# SPDX-License-Identifier: MIT
 #
 
-# shellcheck source=/usr/local/share/clishe/clishe.sh
-PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
-. clishe.sh >/dev/null 2>&1 || {
-  echo "clishe library is not installed" >&2
-  exit 1
-}
-
-__wd="${PWD:-$(pwd)}"
-
 __userhome="${HOME}"
-__userhome_lit="\${HOME}"
 __vmtoolslocaldir="${__userhome}/.vmtools"
-__vmtoolslocaldir_lit="${__userhome_lit}/.vmtools"
 __vmtoolsconfig="${__vmtoolslocaldir}/config"
 __vmtoolsimagesdir="${__vmtoolslocaldir}/images"
-__vmtoolsimagesdir_lit="${__vmtoolslocaldir_lit}/images"
-__vmcachedir=".vmcache"
+__vmtoolsvmsdir="${__vmtoolslocaldir}/vms"
 __artifactsdir="artifacts"
 __guest_log="guest.log"
 __qemu_log="qemu.log"
@@ -33,33 +22,43 @@ __cloud_meta_data="meta-data"
 __cloud_user_data="user-data"
 __cloud_init_iso="cloud-init.iso"
 __pidfile="qemu.pid"
+__image_list_format='%-30s%-20s%-30s%-20s%s'
+__vm_list_format='%-20s%-20s%-25s%s'
+
+if [[ -z "${NOCOLOR:-}" ]]; then
+  __creset='\e[0m'
+  __cred='\e[31m'
+  __cgreen='\e[32m'
+  __cblue='\e[34m'
+else
+  __creset=""
+  __cred=""
+  __cgreen=""
+  __cblue=""
+fi
 
 # -----------------------------------------------------------------------------
 # -- 1) Helpers
 # -----------------------------------------------------------------------------
 
-function __workspacepath() {
-  echo -n "${__wd}/${__vmcachedir}/vm-${1}"
+function __vmpath() {
+  echo -n "${__vmtoolsvmsdir}/vm-${1}"
 }
 
 function __configpath() {
-  echo -n "$(__workspacepath "${1}")/config"
-}
-
-function __gitignorepath() {
-  echo -n "$(__workspacepath "${1}")/.gitignore"
+  echo -n "$(__vmpath "${1}")/config"
 }
 
 function __artifactspath() {
-  echo -n "$(__workspacepath "${1}")/${__artifactsdir}"
+  echo -n "$(__vmpath "${1}")/${__artifactsdir}"
 }
 
 function __cloudpath() {
-  echo -n "$(__workspacepath "${1}")/${__clouddir}"
+  echo -n "$(__vmpath "${1}")/${__clouddir}"
 }
 
 function __pidfilepath() {
-  echo -n "$(__workspacepath "${1}")/${__pidfile}"
+  echo -n "$(__vmpath "${1}")/${__pidfile}"
 }
 
 function __realpath() {
@@ -70,23 +69,61 @@ function __realpath() {
   fi
 }
 
+function __p_red_n() {
+  echo -ne "${__cred}$*${__creset}"
+}
+
+function __p_red() {
+  __p_red_n "$@"
+  echo ""
+}
+
+function __p_green_n() {
+  echo -ne "${__cgreen}$*${__creset}"
+}
+
+function __p_green() {
+  __p_green_n "$@"
+  echo ""
+}
+
+function __p_blue_n() {
+  echo -ne "${__cblue}$*${__creset}"
+}
+
+function __p_blue() {
+  __p_blue_n "$@"
+  echo ""
+}
+
+function __error() {
+  local _exitcode=1
+
+  if [[ "${1:-}" =~ ^[[:digit:]]+$ ]]; then
+    _exitcode=${1}
+    shift
+  fi
+  __p_red "$(basename "$0"): $*" >&2
+  exit ${_exitcode}
+}
+
 function __need_arg() {
   if [[ -z "${1:-}" ]]; then
-    clishe_error "${FUNCNAME[1]}: Argument expected."
+    __error "${FUNCNAME[1]}: Argument expected."
   fi
 }
 
 function __need_var() {
   __need_arg "${1:-}"
   if [[ -z "${!1:-}" ]]; then
-    clishe_error "${FUNCNAME[1]}: Variable ${1} is undefined or empty."
+    __error "${FUNCNAME[1]}: Variable ${1} is undefined or empty."
   fi
 }
 
 function __need_file() {
   __need_arg "${1:-}"
   if [[ ! -s "${1}" ]]; then
-    clishe_error "${FUNCNAME[1]}: File ${1} is empty or missing."
+    __error "${FUNCNAME[1]}: File ${1} is empty or missing."
   fi
 }
 
@@ -108,11 +145,11 @@ function __runcmd() {
       "$@" > "${_stdout}" || _error_code=$?
     fi
     if [[ ${_error_code} -ne 0 ]]; then
-      clishe_echo --red "Command (${_cmd}) ends up with error ${_error_code}."
+      __p_red "Command (${_cmd}) ends up with error ${_error_code}." >&2
       return ${_error_code}
     fi
   else
-    clishe_echo --blue "[dry run] ${_cmd}"
+    __p_blue "[dry run] ${_cmd}" >&2
   fi
 }
 
@@ -124,7 +161,7 @@ function __cd() {
 function __ensure_directory() {
   __need_arg "${1:-}"
   if [[ ! -d "${1}" ]]; then
-    __runcmd mkdir -v -p "${1}"
+    __runcmd mkdir -vp "${1}"
   fi
 }
 
@@ -136,7 +173,7 @@ function __truncate() {
 function __source() {
   __need_arg "${1:-}"
   source "${1}" >/dev/null 2>&1 || {
-    clishe_error "${FUNCNAME[1]}: Can't source ${1}"
+    __error "${FUNCNAME[1]}: Can't source '${1}'."
   }
 }
 
@@ -183,7 +220,7 @@ function __checkpidfile() {
   if [[ -f "${_pidfile}" ]]; then
     _pid="$(cat "${_pidfile}")"
     if [[ -f "/proc/${_pid}/status" ]]; then
-      clishe_error "VM ${1} is still active. Try \`vmstop ${1}\` to halt it."
+      __error "VM ${1} is still active. Try \`vmstop ${1}\` to halt it."
     fi
     __runcmd rm -f "${_pidfile}"
   fi
@@ -196,16 +233,17 @@ function __checkpidfile() {
 function vmtools_setup() {
   vmtools_init_vmtools_config
   __ensure_directory "${__vmtoolsimagesdir}"
+  __ensure_directory "${__vmtoolsvmsdir}"
 }
 
 function vmtools_vminit() {
-  local _workspacedir=""
+  local _vmdir=""
 
   __need_arg "${1:-}"
-  _workspacedir="$(__workspacepath "${1}")"
+  _vmdir="$(__vmpath "${1}")"
 
   __checkpidfile "${1}"
-  __ensure_directory "${_workspacedir}"
+  __ensure_directory "${_vmdir}"
   vmtools_init_config "${1}"
   vmtools_vmupdate "${1}"
 }
@@ -227,8 +265,8 @@ function __create_cloud() {
   __need_arg "${1:-}"
   _clouddir="$(__cloudpath "${1}")"
 
-  __runcmd rm -v -rf "${_clouddir}"
-  __runcmd mkdir -v -p "${_clouddir}"
+  __runcmd rm -vrf "${_clouddir}"
+  __runcmd mkdir -vp "${_clouddir}"
   (
     __source "$(__configpath "${1}")"
 
@@ -246,7 +284,7 @@ function __create_cloud() {
     __runcmd touch "${__cloud_meta_data}"
     __runcmd __create_cloud_user_data "${__cloud_user_data}" \
       "${VMCFG_USER}" "${VMCFG_PASSWORD}" "$(cat "../${VMCFG_ID_RSA_PUB}")"
-    __runcmd genisoimage -input-charset utf-8 -volid cidata -joliet -rock \
+    __runcmd mkisofs -input-charset utf-8 -volid cidata -joliet -rock \
       -output "${__cloud_init_iso}" \
       "${__cloud_user_data}" "${__cloud_meta_data}"
   )
@@ -283,16 +321,40 @@ function __create_vmtools_config() {
   cat > "${1}" <<-_EOF_
 	# Virtual Machine Tools configuration.
 
-	# Editor:
-	VMTOOLS_EDITOR="\${VMTOOLS_EDITOR:-\${EDITOR:-vi}}"
+	# Editor (if unset, \${EDITOR:-vi} is used):
+	VMTOOLS_EDITOR="\${VMTOOLS_EDITOR:-}"
 
 	# Command to get an image. First argument to the command is an image
 	# location, second is a name of image file or an image file destination
-	# path; the rest of arguments are left to user interpretation:
-	VMTOOLS_GET_IMAGE_CMD="vmtools_get_image_cmd"
+	# path; the rest of arguments are left to user interpretation. If unset
+	# vmtools_get_image_cmd is used:
+	VMTOOLS_GET_IMAGE_CMD="\${VMTOOLS_GET_IMAGE_CMD:-}"
 
 	# QEMU command:
-	VMTOOLS_QEMU_CMD=""
+	VMTOOLS_QEMU_CMD="\${VMTOOLS_QEMU_CMD:-}"
+
+	# QEMU process name regular expression (if unset, 'qemu' is used):
+	VMTOOLS_QEMU_PROC_RE="\${VMTOOLS_QEMU_PROC_RE:-}"
+
+	# CPU limit (determined automatically when unset):
+	VMTOOLS_CPU_LIMIT="\${VMTOOLS_CPU_LIMIT:-}"
+
+	# Regular expression for grep that matches VM images (if unset,
+	# '\.qcow2$' is used):
+	VMTOOLS_IMAGE_RE="\${VMTOOLS_IMAGE_RE:-}"
+
+	# Format of a row printed by vmtools-images (following printf). First
+	# column is the image's name, second is the image's type, third is the
+	# image's last modification time, fourth is the image's user/group, and
+	# the fifth is the image's size. The default format is
+	# '${__image_list_format}':
+	VMTOOLS_IMAGE_LIST_FORMAT="\${VMTOOLS_IMAGE_LIST_FORMAT:-}"
+
+	# Format of a row printed by vmtools-vms (following printf). First
+	# column is the VM's name, second is the VM runner process name and ID,
+	# third is the socket, and the fourth is the path to the image. The
+	# default format is '${__vm_list_format}':
+	VMTOOLS_VM_LIST_FORMAT="\${VMTOOLS_VM_LIST_FORMAT:-}"
 	_EOF_
 }
 
@@ -309,13 +371,9 @@ function vmtools_init_config() {
 
   __need_arg "${1:-}"
   _config="$(__configpath "${1}")"
-  _gitignore="$(__gitignorepath "${1}")"
   __checkpidfile "${1}"
   if [[ ! -s "${_config}" ]]; then
     __runcmd __create_config_file "${_config}" "${1}"
-  fi
-  if [[ ! -s "${_gitignore}" ]]; then
-    __runcmd __create_gitignore "${_gitignore}"
   fi
 }
 
@@ -324,8 +382,8 @@ function __create_config_file() {
 	# Configuration for ${2} virtual machine. In case of need, please edit
 	# the lines below.
 
-	# Path to image (absolute or relative to working directory):
-	VMCFG_IMAGE="${__vmtoolsimagesdir_lit}"
+	# Image name:
+	VMCFG_IMAGE=""
 
 	# User:
 	VMCFG_USER="root"
@@ -356,17 +414,6 @@ function __create_config_file() {
 
 	# VM network NIC model:
 	VMCFG_NET_NIC_MODEL="virtio"
-
-	# Path to the Ansible playbook to setup virtual machine:
-	VMCFG_SETUP_YML="\${VMCFG_IMAGE%.*}.yml"
-	_EOF_
-}
-
-function __create_gitignore() {
-  cat > "${1}" <<-_EOF_
-	*
-	!.gitignore
-	!config
 	_EOF_
 }
 
@@ -398,9 +445,9 @@ function vmtools_genkeys() {
     __need_var VMCFG_ID_RSA_PUB
     __need_var VMCFG_RSA_KEY_BITS
 
-    __cd "$(__workspacepath "${1}")"
+    __cd "$(__vmpath "${1}")"
 
-    __runcmd rm -v -f "${VMCFG_ID_RSA}" "${VMCFG_ID_RSA_PUB}"
+    __runcmd rm -vf "${VMCFG_ID_RSA}" "${VMCFG_ID_RSA_PUB}"
 
     __runcmd ssh-keygen \
       -f "${VMCFG_ID_RSA}" -t rsa -b "${VMCFG_RSA_KEY_BITS}" \
@@ -415,6 +462,7 @@ function vmtools_vmsxx() {
   local _sxx=""
   local _vmname=""
 
+  __need_arg "${1:-}"
   __need_arg "${2:-}"
   _sxx="${1}"
   _vmname="${2}"
@@ -427,7 +475,7 @@ function vmtools_vmsxx() {
     __need_var VMCFG_PORT
     __need_var VMCFG_ID_RSA
 
-    __cd "$(__workspacepath "${_vmname}")"
+    __cd "$(__vmpath "${_vmname}")"
 
     __need_file "${VMCFG_ID_RSA}"
 
@@ -478,15 +526,36 @@ function vmtools_vmping() {
 }
 
 # -----------------------------------------------------------------------------
-# -- 6) Image Management
+# -- 6) Image Management & Cleanup
 # -----------------------------------------------------------------------------
+
+function __imgname() {
+  local _imgname="${1##*/}"
+  local _suffix=""
+
+  if [[ "${2:-}" == *.* ]]; then
+    echo -n "${2}"
+    return 0
+  fi
+
+  if [[ -z "${2:-}" ]]; then
+    echo -n "${_imgname}"
+    return 0
+  fi
+
+  if [[ "${_imgname}" == *.* ]]; then
+    _suffix="${_imgname##*.}"
+  fi
+
+  echo -n "${2}.${_suffix:-qcow2}"
+}
 
 function __copy_image() {
   if [[ -f "${2}" ]]; then
-    clishe_error "Image $(__realpath "${2}") already exists."
+    __error "Image $(__realpath "${2}") already exists."
   fi
   if [[ -d "${2}" ]] && [[ -f "${2}/${1##*/}" ]]; then
-    clishe_error "Image $(__realpath "${2}/${1##*/}") already exists."
+    __error "Image $(__realpath "${2}/${1##*/}") already exists."
   fi
   __runcmd cp -v "$@"
 }
@@ -497,193 +566,175 @@ function __wget_image() {
   local _imgfile="${_dest##*/}"
 
   if [[ -f "${_dest}" ]]; then
-    clishe_echo --blue "Image $(__realpath "${_dest}") already exists."
-    return
+    __p_blue "Image $(__realpath "${_dest}") already exists." >&2
+    return 0
   fi
 
   __runcmd wget -O "${_dest}" "${1}" || _error_code=$?
   if [[ ${_error_code} -eq 0 ]]; then
-    clishe_echo --green "Image ${_imgfile} successfully downloaded."
+    __p_green "Image ${_imgfile} successfully downloaded." >&2
   else
-    clishe_error ${_error_code} \
+    __error ${_error_code} \
       "Attempt to get ${_imgfile} from ${1} has failed."
   fi
 }
 
-function __cisy_warn() {
-  clishe_echo --yellow "${1} Please create your image setup playbook manually."
-}
-
-function __create_image_setup_yml() {
-  local _url_parts="${1}"
-  local _image="${2##*/}"
-  local _hub=""
-  local _release=""
-  local _composever=""
-  local _template=""
-  local _arch=""
-
-  # Guess the hub
-  if [[ "${_url_parts}" =~ ^([[:alpha:]]+://[^/]+)/(.*)$ ]]; then
-    _hub="${BASH_REMATCH[1]}"
-    _url_parts="${BASH_REMATCH[2]}"
-  else
-    __cisy_warn "URL <${1}> has invalid format."
-    return
-  fi
-
-  # Guess the release and compose version
-  if [[ "${_url_parts}" == */fedora/* ]]; then
-    _template="fedora-setup"
-  elif [[ "${_url_parts}" =~ ^released/[^/]+/([^/]+)/.*$ ]]; then
-    _release="${BASH_REMATCH[1]}"
-    _template="rhel-released-setup"
-  elif [[ "${_url_parts}" =~ ^[^/]+/composes/[^/]+/([^/]+)/.*$ ]]; then
-    _composever="${BASH_REMATCH[1]}"
-    _template="rhel-compose-setup"
-  else
-    __cisy_warn "Release or compose version cannot be guessed from <${1}>."
-    return
-  fi
-
-  # Guess the release from the compose id
-  if [[ -z "${_release}" ]]; then
-    if [[ "${_image}" =~ ^Fedora-Cloud-Base-([[:digit:]]+|Rawhide)-.*$ ]]; then
-      _release="${BASH_REMATCH[1],,}"
-      [[ -z "${_release}" ]] \
-      && __cisy_warn "Can't guess release from Fedora image name."
-    elif [[ "${_composever}" =~ ^RHEL-([^-]+)-(.+)$ ]]; then
-      _release="${BASH_REMATCH[1]}"
-      _composever="${BASH_REMATCH[2]}"
-    else
-      __cisy_warn "Can't guess release from compose id."
-    fi
-  fi
-
-  # Verify that the release has valid form (hopefully this could catch changes
-  # in the hub's layout)
-  [[ "${_release}" =~ ^[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+$ ]] \
-  || [[ "${_release}" =~ ^[[:digit:]]+|rawhide$ ]] \
-  || {
-    __cisy_warn "Release string '${_release}' has invalid form."
-    return
-  }
-
-  # Add -alpha, -beta, etc. to the release
-  if [[ "${3:-}" ]]; then
-    _release="${_release}-${3}"
-  fi
-
-  # Guess architecture from the image name
-  _arch="${_image%.*}"
-  _arch="${_arch##*.}"
-
-  # Verify the architecture
-  [[ "${_arch}" =~ ^(aarch64|ppc64le|s390x|x86_64)$ ]] || {
-    __cisy_warn "Unknown architecture '${_arch}'."
-    return
-  }
-
-  # Prepare parameters
-  _extra_vars=$(
-    echo -n "{\"pkmaint_task\":\"create_image_setup\""
-    echo -n ",\"pkmaint_imagebase\":\"${_image%.*}\""
-    echo -n ",\"pkmaint_image_setup_template\":\"${_template}\""
-    echo -n ",\"hub\":\"${_hub}\""
-    echo -n ",\"release\":\"${_release}\""
-    echo -n ",\"composever\":\"${_composever}\""
-    echo -n ",\"arch\":\"${_arch}\""
-    echo -n "}"
-  )
-
-  # Generate the setup playbook
-  __runcmd ansible all -c local -i localhost, \
-    -m import_role -a 'name=pkmaint' -e "${_extra_vars}" \
-  || __cisy_warn "Creating ${_image%.*}.yml has failed."
-}
-
-function __find_qcow2_image() {
-  local _result=""
-
-  while read -r _line; do
-    if [[ "${_line}" =~ ^\ *\<a\ +href=\"(.+)\"\ *\>.*$ ]]; then
-      _result="${BASH_REMATCH[1]}"
-      if [[ "${_result}" == *.qcow2 ]]; then
-        echo "${1}/${_result}"
-        break
-      fi
-    fi
-  done < <(curl -k -L "${1}" 2>&1)
-}
-
 function vmtools_get_image_cmd() {
-  local _src="${1:-}"
-  local _dest=""
-  local _version=""
-  local _arch=""
-  local _release_phase=""
-
-  __need_arg "${_src}"
-
-  # fedora-<release>(.<arch>)?
-  if [[ "${_src}" =~ ^fedora-([[:digit:]]+|n|N)(\..+)?$ ]]; then
-    _arch="${BASH_REMATCH[2]:-.x86_64}"
-    _arch="${_arch:1}"
-    if [[ "${BASH_REMATCH[1]}" == [nN] ]]; then
-      _version="rawhide"
-    else
-      _version="${BASH_REMATCH[1]}"
-    fi
-    for _x in releases development; do
-      _src="https://download.fedoraproject.org/pub/fedora/linux"
-      _src="${_src}/${_x}/${_version}/Cloud/${_arch}/images"
-      clishe_echo -n --blue "Trying ${_src}"
-      _src="$(__find_qcow2_image "${_src}")"
-      if [[ "${_src}" ]]; then
-        clishe_echo --green " [OK]"
-        break
-      else
-        clishe_echo --red " [FAILED]"
-      fi
-    done
-    if [[ -z "${_src}" ]]; then
-      return 1
-    fi
-  fi
-
-  if [[ "${_src}" =~ ^[[:alpha:]]+:.*$ ]]; then
-    case $# in
-      1)
-        _dest="${_src##*/}"
-        ;;
-      2)
-        if [[ "${2}" == *.qcow2 ]]; then
-          _dest="${2}"
-        else
-          _dest="${_src##*/}"
-          _release_phase="${2}"
-        fi
-        ;;
-      *)
-        _dest="${2}"
-        _release_phase="${3}"
-        ;;
-    esac
-    __wget_image "${_src}" "${_dest}"
-    __create_image_setup_yml "${_src}" "${_dest}" "${_release_phase}"
+  if [[ "${1:-}" =~ ^[[:alpha:]]+:.*$ ]]; then
+    __wget_image "${1}" "$(__imgname "${1}" "${2:-}")"
   else
-    __copy_image "${_src}" "${2:-.}"
+    __copy_image "${1}" "$(__imgname "${1}" "${2:-}")"
   fi
 }
 
 function vmtools_get_image() {
+  __need_arg "${1:-}"
   __ensure_directory "${__vmtoolsimagesdir}"
   (
     __cd "${__vmtoolsimagesdir}"
 
     __softsource "${__vmtoolsconfig}"
 
-    "${VMTOOLS_GET_IMAGE_CMD:-vmtools_get_image_cmd}" "${1:-}" "${2:-}"
+    "${VMTOOLS_GET_IMAGE_CMD:-vmtools_get_image_cmd}" "$@"
+  )
+}
+
+function vmtools_list_images() {
+  (
+    __cd "${__vmtoolsimagesdir}"
+
+    __softsource "${__vmtoolsconfig}"
+
+    _format="${VMTOOLS_IMAGE_LIST_FORMAT:-${__image_list_format}}"
+
+    printf "${_format}\n" 'NAME' 'TYPE' 'CHANGED' 'USER/GROUP' 'SIZE' >&2
+    while read -r _name; do
+      _type="$(file -b "${_name}")"
+      _type="${_type%%,*}"
+      _changed="$(stat -c '%Y' "${_name}")"
+      _changed="$(date --date="@${_changed}" '+%Y-%m-%d %H:%M %z')"
+      _user_group="$(stat -c '%U/%G' "${_name}")"
+      _size="$(ls -sh "{_name}" | cut -d' ' -f1)"
+      printf "${_format}\n" "${_name}" "${_type}" "${_changed}" \
+        "${_user_group}" "${_size}"
+    done < <(ls -1 | grep -E "${VMTOOLS_IMAGE_RE:-\.qcow2$}")
+  )
+}
+
+function vmtools_remove_image() {
+  __need_arg "${1:-}"
+  (
+    __cd "${__vmtoolsimagesdir}"
+
+    __softsource "${__vmtoolsconfig}"
+
+    _image="${1}"
+    if [[ ! "${_image}" == *.* ]]; then
+      _image="${_image}.qcow2"
+    fi
+
+    if [[ ! -f "${_image}" ]]; then
+      __runcmd rm -vf "${_image%.*}.yml"
+      return 0
+    fi
+
+    declare -a _in_use=( $(lsof -t "$(__realpath "${_image}")") )
+    if [[ ${#_in_use[@]} -gt 0 ]]; then
+      _p_red "Image ${_image} is still in use!" \
+        " Please, close following processes:" >&2
+      __list_vms_by_pids "${_in_use[@]}"
+      return 1
+    fi
+
+    __runcmd rm -vi "${_image}"
+    if [[ ! -f "${_image}" ]]; then
+      __runcmd rm -vf "${_image%.*}.yml"
+    fi
+  )
+}
+
+function __wait_ghost() {
+  local _i=0
+
+  while [[ ${_i} -lt ${1} ]]; do
+    sleep 1
+    __p_blue_n "." >&2
+    if [[ ! -f "/proc/${2}/status" ]]; then
+      return 0
+    fi
+    _i=$(( _i + 1 ))
+  done
+  [[ ! -f "/proc/${2}/status" ]]
+}
+
+function __kill_ghost() {
+  local _vmname="$(__get_vm_name "${1}")"
+  local _error_code=0
+
+  if [[ ! "${_vmname}" == \** ]]; then
+    return 0
+  fi
+
+  __p_blue_n "Killing ghost VM ${_vmname} (PID=${1})..." >&2
+
+  __runcmd kill -SIGTERM "${1}" >/dev/null 2>&1 || _error_code=$?
+  if [[ ${_error_code} -eq 0 ]] && __wait_ghost 600 "${1}"; then
+    __p_green "[DONE]" >&2
+    return 0
+  fi
+
+  _error_code=0
+  __runcmd kill -9 "${1}" >/dev/null 2>&1 || _error_code=$?
+  if [[ ${_error_code} -eq 0 ]] && __wait_ghost 10 "${1}"; then
+    __p_green "[DONE]" >&2
+    return 0
+  fi
+
+  if [[ -f "/proc/${1}/status" ]]; then
+    __p_red "[FAIL]" >&2
+  else
+    _p_green "[DONE]" >&2
+  fi
+}
+
+function __kill_ghosts() {
+  declare -a _pids=( $(__get_qemu_pids) )
+
+  for _pid in "${_pids[@]}"; do
+    __kill_ghost "${_pid}"
+  done
+}
+
+function __remove_artifacts() {
+  (
+    __cd "${__vmtoolsimagesdir}"
+
+    __runcmd rm -vf ./*.retry
+
+    declare -A _basenames_hist=()
+    declare -a _files=( $(ls -1) )
+    for _f in "${_files[@]}"; do
+      _f="${_f%.*}"
+      if [[ -z "${_basenames_hist[${_f}]}" ]]; then
+        _basenames_hist[${_f}]=0
+      fi
+      _basenames_hist[${_f}]=$(( ${_basenames_hist[${_f}]} + 1 ))
+    done
+
+    for _b in "${!_basenames_hist[@]}"; do
+      if [[ ${_basenames_hist[${_b}]} -eq 1 ]]; then
+        __runcmd rm -vf "${_b}.yml"
+      fi
+    done || :
+  )
+}
+
+function vmtools_cleanup() {
+  (
+    __softsource "${__vmtoolsconfig}"
+
+    __kill_ghosts
+    __remove_artifacts
   )
 }
 
@@ -704,7 +755,6 @@ function vmtools_vmstart() {
     __source "$(__configpath "${1}")"
 
     __need_var VMCFG_IMAGE
-    __need_file "${VMCFG_IMAGE}"
     __need_var VMCFG_HOST
     __need_var VMCFG_PORT
     __need_var VMCFG_MEMSIZE
@@ -730,7 +780,14 @@ function vmtools_vmstart() {
       -display none
     )
 
-    _image="$(__realpath "${VMCFG_IMAGE}")"
+    _image="${VMCFG_IMAGE}"
+    if [[ ! "${_image}" == *.* ]]; then
+      _image="${_image}.qcow2"
+    fi
+    _image="${__vmtoolsimagesdir}/${_image}"
+    __need_file "${_image}"
+    _image="$(__realpath "${_image}")"
+
     _cloudinit="$(__cloudpath "${1}")/${__cloud_init_iso}"
     __need_file "${_cloudinit}"
     _cloudinit="$(__realpath "${_cloudinit}")"
@@ -738,7 +795,7 @@ function vmtools_vmstart() {
     # Check if host and port are free:
     _hostaddr="${VMCFG_HOST}:${VMCFG_PORT}"
     if __socketinuse "${_hostaddr}"; then
-      clishe_error "${_hostaddr} is taken."
+      __error "${_hostaddr} is taken."
     fi
 
     # Artifacts:
@@ -753,7 +810,7 @@ function vmtools_vmstart() {
     # Try to find qemu command:
     _qemu_cmd="$(__findprog "${_qemu_cmds[@]}")"
     if [[ -z "${_qemu_cmd}" ]]; then
-      clishe_error "Cannot find a command to launch qemu."
+      __error "Cannot find a command to launch qemu."
     fi
 
     # Probe virtio-rng device:
@@ -768,7 +825,7 @@ function vmtools_vmstart() {
     done || :
 
     # Determine the number of CPUs visible to guest:
-    _ncpus="${STR_CPU_LIMIT:-}"
+    _ncpus="${VMTOOLS_CPU_LIMIT:-}"
     if [[ -z "${_ncpus}" ]]; then
       _ncpus="$(lscpu -b -p=Core,Socket | grep -cEe '^[0-9]+,[0-9]+$')"
       if [[ "${_ncpus:-1}" -gt "$(nproc)" ]]; then
@@ -776,7 +833,7 @@ function vmtools_vmstart() {
       fi
     fi
     if [[ ! "${_ncpus}" =~ ^[1-9][0-9]*$ ]]; then
-      clishe_error "${FUNCNAME[0]}: Number of CPUs must be numeric value."
+      __error "${FUNCNAME[0]}: Number of CPUs must be numeric value."
     fi
 
     _qemu_params+=(
@@ -817,7 +874,7 @@ function vmtools_vmstart() {
     # Launch qemu:
     set +e
     _qemu_ec=0
-    clishe_echo --blue "Launching VM ${1}..."
+    __p_blue "Launching VM ${1}..." >&2
     __runcmd "${_qemu_cmd}" "${_qemu_params[@]}" || _qemu_ec=$?
     if [[ "${DRY_RUN:-}" ]]; then
       return 0
@@ -826,7 +883,7 @@ function vmtools_vmstart() {
     _failmsg="Launching VM ${1} has failed. See ${_qemu_log} for details."
 
     if [[ ${_qemu_ec} -ne 0 ]] || [[ ! -s "${_pidfile}" ]]; then
-      clishe_error "${_failmsg}"
+      __error "${_failmsg}"
     fi
 
     # Wait the launched OS became active:
@@ -835,10 +892,10 @@ function vmtools_vmstart() {
     sleep 5
     _i=0
     while [[ ${_i} -lt 600 ]]; do
-      clishe_echo --blue "Waiting to VM ${1} to become ready #$(( _i + 1 ))."
+      __p_blue "Waiting to VM ${1} to become ready #$(( _i + 1 ))." >&2
       if [[ ! -f "/proc/${_qemu_pid}/status" ]]; then
         __runcmd rm -f "${_pidfile}"
-        clishe_error "${_failmsg}"
+        __error "${_failmsg}"
       fi
       if vmtools_vmping "${1}"; then
         _active="y"
@@ -849,26 +906,25 @@ function vmtools_vmstart() {
     done
 
     if [[ -z "${_active}" ]]; then
-      clishe_error "Unable to connect to launched VM ${1}. Killing."
+      __error "Unable to connect to launched VM ${1}. Killing."
       kill -SIGTERM "${_qemu_pid}"
       __runcmd rm -f "${_pidfile}"
     fi
 
-    clishe_echo --green "VM ${1} is ready."
+    __p_green "VM ${1} is ready." >&2
   )
 }
 
 function vmtools_vmstop() {
-  local _error_code
+  local _error_code=0
 
   __need_arg "${1:-}"
 
   __vmstatusq "${1}" || {
-    clishe_echo --blue "VM ${1} is already halted."
+    __p_blue "VM ${1} is already halted." >&2
     return 0
   }
 
-  _error_code=0
   __vmsshq "${1}" "shutdown -h now" || _error_code=$?
   if [[ ${_error_code} -eq 0 ]] && __vmwait "${1}"; then
     return 0
@@ -882,11 +938,11 @@ function vmtools_vmstop() {
 
   _error_code=0
   __vmkillq "${1}" 9 || _error_code=$?
-  if [[ ${_error_code} -eq 0 ]] && __vmwait "${1}" 5; then
+  if [[ ${_error_code} -eq 0 ]] && __vmwait "${1}" 10; then
     return 0
   fi
 
-  clishe_error "Unable to halt VM ${1}. Please, check it manually."
+  __error "Unable to halt VM ${1}. Please, check it manually."
 }
 
 function __vmsshq() {
@@ -902,7 +958,7 @@ function vmtools_vmkill() {
   __need_arg "${2:-}"
 
   __vmstatusq "${1}" || {
-    clishe_echo --blue "VM ${1} is halted."
+    __p_blue "VM ${1} is halted." >&2
     return 0
   }
   __runcmd kill "-${2}" "$(cat "$(__pidfilepath "${1}")")"
@@ -912,10 +968,10 @@ function __vmwait() {
   local _i=0
 
   while [[ ${_i} -lt ${2:-600} ]]; do
-    clishe_echo --blue "Waiting for VM ${1} to become halted #$(( _i + 1 ))."
+    __p_blue "Waiting for VM ${1} to become halted #$(( _i + 1 ))." >&2
     sleep 1
     __vmstatusq "${1}" || {
-      clishe_echo --green "VM ${1} was successfully halted."
+      __p_green "VM ${1} was successfully halted." >&2
       return 0
     }
     _i=$(( _i + 1 ))
@@ -931,6 +987,80 @@ function __vmstatusq() {
 # -- 8) Status
 # -----------------------------------------------------------------------------
 
+function __get_vm_name() {
+  local _vmname=""
+  declare -a _tempa=()
+
+  # Get the virtual machine name in the form of *NAME; star is optional and
+  # means that virtual machine has been deleted:
+  _tempa=( $(lsof -P -p "${1}" | grep "${__pidfile}") )
+  # 8th item is path to pid file, strip it:
+  _vmname="${_tempa[8]%/*}"
+  # Get the VM name:
+  _vmname="${_vmname##*/}"
+  # Strip the vm- prefix:
+  _vmname="${_vmname#*-}"
+  # Assemble output:
+  if [[ -z "${_vmname}" ]]; then
+    _vmname='???'
+  elif [[ ! -d "$(_vmpath "${_vmname}")" ]]; then
+    _vmname="*${_vmname}"
+  fi
+  # Output:
+  echo -n "${_vmname}"
+}
+
+function __list_vms_by_pids() {
+  local _format="${VMTOOLS_VM_LIST_FORMAT:-${__vm_list_format}}"
+  local _pid=""
+  local _vmname=""
+  local _process=""
+  local _socket=""
+  local _image=""
+  declare -a _tempa=()
+
+  printf "${_format}\n" 'VM NAME' 'PROCESS (ID)' 'SOCKET' 'IMAGE' >&2
+  for _pid in "$@"; do
+    # Get VM name:
+    _vmname="$(__get_vm_name "${_pid}")"
+    # Get the socket:
+    _tempa=( $(lsof -P -p "${_pid}" | grep LISTEN) )
+    _socket="${_tempa[8]:-N/A}"
+    # Get the process name and ID:
+    _process="${_tempa[0]} (${_tempa[1]})"
+    # Get the image:
+    _tempa=( $(
+      while read -ra _words; do
+        echo "${_words[8]}" | grep -E "${VMTOOLS_IMAGE_RE:-\.qcow2$}"
+      done < <(lsof -P -p "${_pid}" | grep ' REG ')
+    ) )
+    if [[ ${#_tempa[@]} -eq 0 ]]; then
+      _image='N/A'
+    elif [[ -f "${_tempa[0]}" ]]; then
+      _image="${_tempa[0]}"
+    else
+      _image="(${_tempa[0]})"
+    fi
+    # Print the row:
+    printf "${_format}\n" "${_vmname}" "${_process}" "${_socket}" "${_image}"
+  done
+}
+
+function __get_qemu_pids() {
+  local _qemu_proc_re="${VMTOOLS_QEMU_PROC_RE:-qemu}"
+
+  ps -A | grep -E "${_qemu_proc_re}" | sed -Ee 's/^[ ]+//g' | cut -d' ' -f1
+}
+
+function vmtools_vms() {
+  (
+    __softsource "${__vmtoolsconfig}"
+
+    declare -a _pids=( $(__get_qemu_pids) )
+    __list_vms_by_pids "${_pids[@]}"
+  )
+}
+
 function vmtools_vmstatus() {
   local _pidfile=""
   local _qemu_pid=""
@@ -939,7 +1069,7 @@ function vmtools_vmstatus() {
   _pidfile="$(__pidfilepath "${1}")"
 
   if [[ ! -f "${_pidfile}" ]]; then
-    clishe_echo --red "Halted"
+    __p_red "Halted" >&2
     return 1
   fi
 
@@ -947,12 +1077,11 @@ function vmtools_vmstatus() {
 
   if [[ ! -f "/proc/${_qemu_pid}/status" ]]; then
     __runcmd rm -f "${_pidfile}"
-    clishe_echo --red "Halted"
+    __p_red "Halted" >&2
     return 1
   fi
 
-  clishe_echo --green "Active"
-  return 0
+  __p_green "Active" >&2
 }
 
 # -----------------------------------------------------------------------------
@@ -975,7 +1104,7 @@ function vmtools_vmplay() {
     __need_var VMCFG_HOST
     __need_var VMCFG_PORT
     __need_var VMCFG_ID_RSA
-    _id_rsa="$(__workspacepath "${1}")/${VMCFG_ID_RSA}"
+    _id_rsa="$(__vmpath "${1}")/${VMCFG_ID_RSA}"
     __need_file "${_id_rsa}"
 
     _ssh_common_args="-o UserKnownHostsFile=/dev/null"
@@ -991,6 +1120,13 @@ function vmtools_vmplay() {
 
     shift
 
+    _ansible_vars=""
+    while [[ "${1:-}" =~ ^([^=]+)=(.+)$ ]]; do
+      _ansible_vars="${_ansible_vars},\"${BASH_REMATCH[1]}\""
+      _ansible_vars="${_ansible_vars}:\"${BASH_REMATCH[2]}\""
+      shift
+    done
+
     _extra_vars=$(
       echo -n "{\"ansible_host\":\"${VMCFG_HOST}\""
       echo -n ",\"ansible_port\":\"${VMCFG_PORT}\""
@@ -1001,10 +1137,7 @@ function vmtools_vmplay() {
       if [[ "${_python}" ]]; then
         echo -n ",\"ansible_python_interpreter\":\"${_python}\""
       fi
-      while [[ "${1:-}" =~ ^([^=]+)=(.+)$ ]]; do
-        echo -n ",\"${BASH_REMATCH[1]}\":\"${BASH_REMATCH[2]}\""
-        shift
-      done
+      echo -n "${_ansible_vars}"
       echo -n "}"
     )
 
@@ -1043,13 +1176,12 @@ function vmtools_vmsetup() {
     done
 
     if [[ -z "${1:-}" ]]; then
-      if [[ -z "${VMCFG_SETUP_YML:-}" ]]; then
-        clishe_echo --red \
-          "Ansible playbook is not provided or VMCFG_SETUP_YML is not set in" \
-          "${_vmname}'s config."
-        return 1
+      __need_var VMCFG_IMAGE
+      _setup_yml="${__vmtoolsimagesdir}/${VMCFG_IMAGE%.*}.yml"
+      if [[ ! -s "${_setup_yml}" ]]; then
+        return 0
       fi
-      _posargs+=( "${VMCFG_SETUP_YML}" )
+      _posargs+=( "${_setup_yml}" )
     else
       _posargs+=( "$@" )
     fi

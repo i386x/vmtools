@@ -1,14 +1,22 @@
 #!/bin/bash
-# SPDX-License-Identifier: MIT
 #
-# File:    vmkill
-# Author:  Jiří Kučera, <sanczes@gmail.com>
+# File:    ./vmkill
+# Author:  Jiří Kučera <sanczes AT gmail.com>
 # Date:    2020-03-30 01:25:58 +0200
 # Project: Virtual Machine Tools (vmtools)
-# Brief:   Send a signal to virtual machine.
+# Brief:   Send a signal to virtual machine
+#
+# SPDX-License-Identifier: MIT
 #
 
 set -euo pipefail
+
+# shellcheck source=/usr/local/share/clishe/clishe.sh
+PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
+. clishe.sh >/dev/null 2>&1 || {
+  echo "clishe library is not installed!" >&2
+  exit 1
+}
 
 PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
 . vmtools.sh >/dev/null 2>&1 || {
