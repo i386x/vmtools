@@ -11,8 +11,9 @@
 include ./common.mk
 
 SCRIPTS := vmconfig vminit vmkill vmping vmplay vmscp vmsetup vmssh vmstart \
-           vmstatus vmstop vmupdate vmtools-config vmtools-getimage \
-           vmtools-setup
+           vmstatus vmstop vmupdate vmtools-cleanup vmtools-config \
+           vmtools-getimage vmtools-images vmtools-rmi vmtools-setup \
+           vmtools-vms
 LIBRARY := vmtools.sh getimage.sh
 
 .PHONY: all install check

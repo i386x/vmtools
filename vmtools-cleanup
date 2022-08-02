@@ -1,0 +1,55 @@
+#!/bin/bash
+#
+# File:    ./vmtools-cleanup
+# Author:  Jiří Kučera <sanczes AT gmail.com>
+# Date:    2022-08-01 18:47:53 +0200
+# Project: Virtual Machine Tools (vmtools)
+# Brief:   Kill hanging VMs and remove artifacts
+#
+# SPDX-License-Identifier: MIT
+#
+
+set -euo pipefail
+
+# shellcheck source=/usr/local/share/clishe/clishe.sh
+PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
+. clishe.sh >/dev/null 2>&1 || {
+  echo "clishe library is not installed!" >&2
+  exit 1
+}
+
+PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
+. vmtools.sh >/dev/null 2>&1 || {
+  echo "I can't see vmtools.sh. Are vmtools installed?" >&2
+  exit 1
+}
+
+clishe_init
+
+clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
+only print what should be done, do not perform anything
+__HELP__
+clishe_defopt --help -h -? -- "print this screen and exit" help usage
+
+function usage() {
+  cat <<-__USAGE__
+	Kill hanging VMs and remove artifacts.
+
+	Usage: ${clishe_scriptname} [--dry-run] [--help] [-h?]
+	where
+
+	${clishe_helplines}
+
+	Kill qemu instances that were created by \`vminit\` and \`vmstart\`
+	and cannot be halted by \`vmstop\` or \`vmkill\`, remove *.retry files
+	and redundant *.yml files (those that are not associated with any
+	existing image) from the image directory. The running qemu instances
+	are filtered by VMTOOLS_QEMU_PROC_RE regular expression, default is
+	"qemu".
+	__USAGE__
+  exit 0
+}
+
+clishe_process_options "$@"
+
+DRY_RUN="${DRY_RUN:-}" vmtools_cleanup

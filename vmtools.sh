@@ -22,8 +22,8 @@ __cloud_meta_data="meta-data"
 __cloud_user_data="user-data"
 __cloud_init_iso="cloud-init.iso"
 __pidfile="qemu.pid"
-__image_list_format='%-30s%-20s%-30s%-20s%s'
-__vm_list_format='%-20s%-20s%-25s%s'
+__image_list_format='%-30s%-30s%-30s%-30s%s'
+__vm_list_format='%-20s%-30s%-25s%s'
 
 if [[ -z "${NOCOLOR:-}" ]]; then
   __creset='\e[0m'
@@ -614,7 +614,7 @@ function vmtools_list_images() {
       _changed="$(stat -c '%Y' "${_name}")"
       _changed="$(date --date="@${_changed}" '+%Y-%m-%d %H:%M %z')"
       _user_group="$(stat -c '%U/%G' "${_name}")"
-      _size="$(ls -sh "{_name}" | cut -d' ' -f1)"
+      _size="$(ls -sh "${_name}" | cut -d' ' -f1)"
       printf "${_format}\n" "${_name}" "${_type}" "${_changed}" \
         "${_user_group}" "${_size}"
     done < <(ls -1 | grep -E "${VMTOOLS_IMAGE_RE:-\.qcow2$}")
@@ -640,7 +640,7 @@ function vmtools_remove_image() {
 
     declare -a _in_use=( $(lsof -t "$(__realpath "${_image}")") )
     if [[ ${#_in_use[@]} -gt 0 ]]; then
-      _p_red "Image ${_image} is still in use!" \
+      __p_red "Image ${_image} is still in use!" \
         " Please, close following processes:" >&2
       __list_vms_by_pids "${_in_use[@]}"
       return 1
@@ -715,7 +715,7 @@ function __remove_artifacts() {
     declare -a _files=( $(ls -1) )
     for _f in "${_files[@]}"; do
       _f="${_f%.*}"
-      if [[ -z "${_basenames_hist[${_f}]}" ]]; then
+      if [[ -z "${_basenames_hist[${_f}]:-}" ]]; then
         _basenames_hist[${_f}]=0
       fi
       _basenames_hist[${_f}]=$(( ${_basenames_hist[${_f}]} + 1 ))
@@ -794,7 +794,8 @@ function vmtools_vmstart() {
 
     # Check if host and port are free:
     _hostaddr="${VMCFG_HOST}:${VMCFG_PORT}"
-    if __socketinuse "${_hostaddr}"; then
+    if __socketinuse "${_hostaddr}" || __socketinuse "\*:${VMCFG_PORT}" \
+    || __socketinuse ":::${VMCFG_PORT}"; then
       __error "${_hostaddr} is taken."
     fi
 
@@ -993,17 +994,21 @@ function __get_vm_name() {
 
   # Get the virtual machine name in the form of *NAME; star is optional and
   # means that virtual machine has been deleted:
-  _tempa=( $(lsof -P -p "${1}" | grep "${__pidfile}") )
-  # 8th item is path to pid file, strip it:
-  _vmname="${_tempa[8]%/*}"
+  while read -r _item; do
+    if [[ "${_item}" == n*${__pidfile} ]]; then
+      _vmname="${_item:1}"
+      break
+    fi
+  done < <(lsof -p "${1}" -P -n -F pn)
   # Get the VM name:
+  _vmname="${_vmname%/*}"
   _vmname="${_vmname##*/}"
   # Strip the vm- prefix:
-  _vmname="${_vmname#*-}"
+  _vmname="${_vmname#vm-}"
   # Assemble output:
   if [[ -z "${_vmname}" ]]; then
     _vmname='???'
-  elif [[ ! -d "$(_vmpath "${_vmname}")" ]]; then
+  elif [[ ! -d "$(__vmpath "${_vmname}")" ]]; then
     _vmname="*${_vmname}"
   fi
   # Output:
@@ -1014,33 +1019,52 @@ function __list_vms_by_pids() {
   local _format="${VMTOOLS_VM_LIST_FORMAT:-${__vm_list_format}}"
   local _pid=""
   local _vmname=""
+  local _command=""
   local _process=""
   local _socket=""
   local _image=""
-  declare -a _tempa=()
+  local _deleted="n"
+  local _type=""
 
   printf "${_format}\n" 'VM NAME' 'PROCESS (ID)' 'SOCKET' 'IMAGE' >&2
   for _pid in "$@"; do
     # Get VM name:
     _vmname="$(__get_vm_name "${_pid}")"
-    # Get the socket:
-    _tempa=( $(lsof -P -p "${_pid}" | grep LISTEN) )
-    _socket="${_tempa[8]:-N/A}"
-    # Get the process name and ID:
-    _process="${_tempa[0]} (${_tempa[1]})"
-    # Get the image:
-    _tempa=( $(
-      while read -ra _words; do
-        echo "${_words[8]}" | grep -E "${VMTOOLS_IMAGE_RE:-\.qcow2$}"
-      done < <(lsof -P -p "${_pid}" | grep ' REG ')
-    ) )
-    if [[ ${#_tempa[@]} -eq 0 ]]; then
-      _image='N/A'
-    elif [[ -f "${_tempa[0]}" ]]; then
-      _image="${_tempa[0]}"
-    else
-      _image="(${_tempa[0]})"
-    fi
+    # Get the socket, process name and ID, and image:
+    _command=""
+    _process=""
+    _socket=""
+    _image=""
+    _deleted="n"
+    _type=""
+    while read -r _item; do
+      case "${_item}" in
+        p*) [[ "${_process}" ]] || _process="${_item:1}" ;;
+        c*) [[ "${_command}" ]] || _command="${_item:1}" ;;
+        t*) _type="${_item:1}" ;;
+        n*)
+          _item="${_item:1}"
+          _deleted="n"
+          if [[ "${_type}" == REG ]]; then
+            if [[ "${_item}" == *\ \(deleted\) ]]; then
+              _deleted="y"
+              _item="${_item::-10}"
+            fi
+            if [[ "${_item}" =~ ${VMTOOLS_IMAGE_RE:-\.qcow2$} ]]; then
+              if [[ -z "${_image}" ]]; then
+                _image="${_item}"
+                [[ "${_deleted}" == n ]] || _image="(${_image})"
+              fi
+            fi
+          elif [[ "${_type}" == IPv4 ]]; then
+            [[ "${_socket}" ]] || _socket="${_item}"
+          fi
+          ;;
+      esac
+    done < <(lsof -p "${_pid}" -sTCP:LISTEN -P -n -F cptn)
+    _socket="${_socket:-N/A}"
+    _process="${_command} (${_process})"
+    _image="${_image:-N/A}"
     # Print the row:
     printf "${_format}\n" "${_vmname}" "${_process}" "${_socket}" "${_image}"
   done
