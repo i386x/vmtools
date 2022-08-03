@@ -125,8 +125,9 @@ function __create_image_setup_yml() {
     echo '        baseurl: "{{ url_c }}"'
     echo '        enabled: yes'
     echo '        gpgcheck: no'
+    echo '        sslverify: no'
     echo '        skip_if_unavailable: yes'
-    echo '        priority: 98'
+    echo '        priority: "98"'
     echo '        state: present'
   } > "${_basename}.yml"
 }
