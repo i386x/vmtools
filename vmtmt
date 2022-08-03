@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+# File:    ./vmtmt
+# Author:  Jiří Kučera <sanczes AT gmail.com>
+# Date:    2022-08-02 13:37:03 +0200
+# Project: Virtual Machine Tools (vmtools)
+# Brief:   Run tmt on the VM
+#
+# SPDX-License-Identifier: MIT
+#
+
+set -euo pipefail
+
+# shellcheck source=/usr/local/share/clishe/clishe.sh
+PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
+. clishe.sh >/dev/null 2>&1 || {
+  echo "clishe library is not installed!" >&2
+  exit 1
+}
+
+PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
+. vmtools.sh >/dev/null 2>&1 || {
+  echo "I can't see vmtools.sh. Are vmtools installed?" >&2
+  exit 1
+}
+
+clishe_init
+
+clishe_defopt VMNAME "a name of virtual machine"
+clishe_defopt --help -h -? -- "print this screen and exit" help usage
+clishe_defopt "@EXTRA ..." "extra arguments to tmt"
+
+function usage() {
+  cat <<-__USAGE__
+	Run \`tmt\` on the virtual machine.
+
+	Usage: ${clishe_scriptname} VMNAME [--help] [-h?] [EXTRA [...]]
+	where
+
+	${clishe_helplines}
+
+	Use \`tmt\` to run tests on VMNAME virtual machine.
+	__USAGE__
+  exit 0
+}
+
+function main() {
+  if ! __vmstatusq "${1}"; then
+    __error "VM ${1} is not running."
+  fi
+
+  (
+    _distro="$(
+      vmtools_vmssh "${1}" \
+        'source /etc/os-release && echo "${ID}-${VERSION_ID}"' \
+      2>/dev/null
+    )"
+
+    __source "$(__configpath "${1}")"
+
+    _id_rsa="$(__vmpath "${1}")/${VMCFG_ID_RSA}"
+    __need_file "${_id_rsa}"
+
+    shift
+
+    tmt -vvvddd -c "distro=${_distro}" run -a \
+      provision -h connect \
+        -g "${VMCFG_HOST}" -P "${VMCFG_PORT}" -k "${_id_rsa}" \
+      plans -n /plans/basic \
+      "$@"
+  )
+}
+
+clishe_process_options "$@"
+
+main "${VMNAME}" "${clishe_tailopts[@]}"
