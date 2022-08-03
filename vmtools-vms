@@ -46,8 +46,10 @@ function usage() {
 	VMTOOLS_VM_LIST_FORMAT, following the \`printf\` format. By default
 	"${__vm_list_format}" is used. The running virtual machines are those
 	their process matches VMTOOLS_QEMU_PROC_RE regular expression, default
-	"qemu". As image files are considered those files their name matches
-	VMTOOLS_IMAGE_RE regular expression, default "\\.qcow2\$".
+	is "qemu". As image files are considered those files their name matches
+	VMTOOLS_IMAGE_RE regular expression, default is "\\.qcow2\$". If the
+	path to the used image is inside parentheses, it means that the image
+	file has been deleted.
 	__USAGE__
   exit 0
 }
