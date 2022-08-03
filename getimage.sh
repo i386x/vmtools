@@ -46,17 +46,21 @@ function __find_qcow2_image() {
 function __create_image_setup_yml() {
   local _url_a=""
   local _url_b=""
+  local _url_c=""
   local _basename=""
+  local _expr="'-' + item if item != 'BaseOS' else ''"
 
   __need_arg "${1:-}"
   __need_arg "${2:-}"
   __need_arg "${3:-}"
   __need_arg "${4:-}"
+  __need_arg "${5:-}"
 
   _url_a="${1}"
   _url_b="${2}"
-  _basename="${3}"
-  shift 3
+  _url_c="${3}"
+  _basename="${4}"
+  shift 4
 
   {
     echo '---'
@@ -66,12 +70,13 @@ function __create_image_setup_yml() {
     echo '  vars:'
     echo "    url_a: \"${_url_a}\""
     echo "    url_b: \"${_url_b}\""
+    echo "    url_c: \"${_url_c}\""
     echo "    march: \"${ARCH:-x86_64}\""
     echo ''
     echo '  tasks:'
     echo '    - name: Add repositories'
     echo '      yum_repository:'
-    echo '        name: "{{ item }}"'
+    echo "        name: \"rhel{{ ${_expr} }}\""
     echo '        description: "{{ item }}"'
     echo '        baseurl: "{{ url_a }}/{{ item }}/{{ march }}/os/"'
     echo '        enabled: yes'
@@ -84,7 +89,7 @@ function __create_image_setup_yml() {
     echo ''
     echo '    - name: Add source repositories'
     echo '      yum_repository:'
-    echo '        name: "{{ item }}-source"'
+    echo "        name: \"rhel{{ ${_expr} }}-source\""
     echo '        description: "{{ item }} source"'
     echo '        baseurl: "{{ url_a }}/{{ item }}/source/tree/"'
     echo '        enabled: yes'
@@ -97,7 +102,7 @@ function __create_image_setup_yml() {
     echo ''
     echo '    - name: Add Buildroot repository'
     echo '      yum_repository:'
-    echo '        name: Buildroot'
+    echo '        name: rhel-buildroot'
     echo '        description: Buildroot'
     echo '        baseurl: "{{ url_b }}/{{ march }}/os/"'
     echo '        enabled: yes'
@@ -106,11 +111,22 @@ function __create_image_setup_yml() {
     echo ''
     echo '    - name: Add Buildroot source repository'
     echo '      yum_repository:'
-    echo '        name: Buildroot-source'
+    echo '        name: rhel-buildroot-source'
     echo '        description: Buildroot source'
     echo '        baseurl: "{{ url_b }}/source/tree/"'
     echo '        enabled: yes'
     echo '        gpgcheck: no'
+    echo '        state: present'
+    echo ''
+    echo '    - name: Add beaker-harness repository'
+    echo '      yum_repository:'
+    echo '        name: beaker-harness'
+    echo '        description: Beaker harness'
+    echo '        baseurl: "{{ url_c }}"'
+    echo '        enabled: yes'
+    echo '        gpgcheck: no'
+    echo '        skip_if_unavailable: yes'
+    echo '        priority: 98'
     echo '        state: present'
   } > "${_basename}.yml"
 }
@@ -124,6 +140,7 @@ function vmtools_get_fimage_cmd() {
   local _alpha_beta=""
   local _url_a=""
   local _url_b=""
+  local _url_c=""
   declare -a _streams=()
   local _arch="${ARCH:-x86_64}"
   local _image_url=""
@@ -185,12 +202,20 @@ function vmtools_get_fimage_cmd() {
         return 1
       fi
 
+      if [[ -z "${BKRHUB:-}" ]]; then
+        __p_red "BKRHUB is not set." >&2
+        return 1
+      fi
+
       _url_a="${RHUB}/${_product,,}-${_major}/${_run}"
       _url_b="${_url_a}/BUILDROOT-${_major}${_alpha_beta}"
       _url_a="${_url_a}/${_product^^}-${_major}${_alpha_beta}"
       _url_a="${_url_a}/latest-${_product^^}-${_version}/compose"
       _url_b="${_url_b}/latest-BUILDROOT-${_version}-${_product^^}-${_major}"
       _url_b="${_url_b}/compose"
+      _url_c="${BKRHUB}/harness/RedHatEnterpriseLinux"
+      [[ ${_major} -ne 5 ]] || _url_c="${_url_c}Server"
+      _url_c="${_url_c}${_major}"
 
       if [[ ${_major} -lt 8 ]]; then
         _streams=( "Server" )
@@ -210,8 +235,8 @@ function vmtools_get_fimage_cmd() {
       _image_file="$(__imgname "${_image_url}" "${2:-}")"
 
       __wget_image "${_image_url}" "${_image_file}"
-      __create_image_setup_yml "${_url_a}" "${_url_b}" "${_image_file%.*}" \
-        "${_streams[@]}"
+      __create_image_setup_yml "${_url_a}" "${_url_b}" "${_url_c}" \
+        "${_image_file%.*}" "${_streams[@]}"
     else
       __bad_image_spec "${_image_spec}"
     fi
