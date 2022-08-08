@@ -10,11 +10,11 @@
 
 include ./common.mk
 
-SCRIPTS := vmconfig vminit vmkill vmping vmplay vmscp vmsetup vmssh vmstart \
-           vmstatus vmstop vmtmt vmupdate vmtools-cleanup vmtools-config \
-           vmtools-getimage vmtools-images vmtools-rmi vmtools-setup \
-           vmtools-vms
-LIBRARY := vmtools.sh getimage.sh
+SCRIPTS := vmconfig vminit vmkill vmping vmplay vmrepo vmscp vmsetup vmssh \
+           vmstart vmstatus vmstop vmtmt vmupdate \
+           vmtools-cleanup vmtools-config vmtools-getimage vmtools-images \
+           vmtools-rmi vmtools-setup vmtools-vms
+LIBRARY := vmtools.sh getimage.sh pkgman.sh
 
 .PHONY: all install check
 

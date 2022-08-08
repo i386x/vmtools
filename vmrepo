@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+# File:    ./vmrepo
+# Author:  Jiří Kučera <sanczes AT gmail.com>
+# Date:    2022-08-08 10:03:26 +0200
+# Project: Virtual Machine Tools (vmtools)
+# Brief:   Manage VM's repositories
+#
+# SPDX-License-Identifier: MIT
+#
+
+set -euo pipefail
+
+# shellcheck source=/usr/local/share/clishe/clishe.sh
+PATH="/usr/local/share/clishe:/usr/share/clishe${PATH:+:}${PATH}" \
+. clishe.sh >/dev/null 2>&1 || {
+  echo "clishe library is not installed!" >&2
+  exit 1
+}
+
+PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
+. vmtools.sh >/dev/null 2>&1 || {
+  echo "I can't see vmtools.sh. Are vmtools installed?" >&2
+  exit 1
+}
+
+PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
+. pkgman.sh >/dev/null 2>&1 || {
+  echo "I can't see pkgman.sh. Are vmtools installed?" >&2
+  exit 1
+}
+
+clishe_init
+
+clishe_defopt VMNAME "a name of virtual machine"
+clishe_defopt --delete -D -- "remove the repository" DELETE_REPO
+clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
+only print what should be done, do not perform anything
+__HELP__
+clishe_defopt --help -h -? -- "print this screen and exit" help usage
+clishe_defopt "@ARG ..." "repository specification, see below"
+
+function usage() {
+  local _synopsis=(
+    'VMNAME' '[--delete]' '[-D]' '[--dry-run]' '[--help]' '[-h?]' '[ARG [...]]'
+  )
+
+  cat <<-__USAGE__
+	Manage virtual machine's repositories.
+
+	Usage: ${clishe_scriptname} ${_synopsis[*]}
+	where
+
+	${clishe_helplines}
+
+	Add/remove repository based on a repository specification ARG ... which
+	has the following format:
+
+	  scratch/[[USER@]SERVICE:]NVR
+	      add/remove a scratch build repository, where USER is a user who
+	      build the NVR package on a SERVICE, SERVICE is brew-based build
+	      system service in form of a full URL or an alias, and NVR is a
+	      name-version-release of the component; if USER is missing, it is
+	      read from the USER environment variable; if the SERVICE is in a
+	      form of URL and prefixed with s+, HTTPS protocol is used; the
+	      SERVICE is not mandatory for repositories that are going to be
+	      removed; a SERVICE alias is translated according to
+	      VMTOOLS_ALIASES config variable
+	__USAGE__
+  exit 0
+}
+
+clishe_process_options "$@"
+
+DRY_RUN="${DRY_RUN:-}" DELETE_REPO="${DELETE_REPO:-}" \
+manage_repo "${VMNAME}" "${clishe_tailopts[@]}"

@@ -321,6 +321,19 @@ function __create_vmtools_config() {
   cat > "${1}" <<-_EOF_
 	# Virtual Machine Tools configuration.
 
+	# Source your libraries here:
+
+	# Set internal URLs:
+	# - composes download hub
+	RHUB=""
+	# - beaker hub
+	BKRHUB=""
+	# - brew task repositories hub
+	BTRHUB=""
+
+	# A map of aliases used by various commands:
+	declare -Ag VMTOOLS_ALIASES=()
+
 	# Editor (if unset, \${EDITOR:-vi} is used):
 	VMTOOLS_EDITOR="\${VMTOOLS_EDITOR:-}"
 
@@ -363,6 +376,17 @@ function vmtools_edit_vmtools_config() {
   (
     __softsource "${__vmtoolsconfig}"
     __runcmd "${VMTOOLS_EDITOR:-${EDITOR:-vi}}" "${__vmtoolsconfig}"
+  )
+}
+
+function vmtools_get_alias() {
+  __need_arg "${1:-}"
+  (
+    __softsource "${__vmtoolsconfig}"
+
+    if [[ "${VMTOOLS_ALIASES[${1}]:-}" ]]; then
+      echo -n "${VMTOOLS_ALIASES[${1}]}"
+    fi
   )
 }
 
