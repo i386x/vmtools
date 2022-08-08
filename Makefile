@@ -10,8 +10,8 @@
 
 include ./common.mk
 
-SCRIPTS := vmconfig vminit vmkill vmping vmplay vmrepo vmscp vmsetup vmssh \
-           vmstart vmstatus vmstop vmtmt vmupdate \
+SCRIPTS := vmconfig vminit vmkill vmping vmpkg vmplay vmrepo vmscp vmsetup \
+           vmssh vmstart vmstatus vmstop vmtmt vmupdate \
            vmtools-cleanup vmtools-config vmtools-getimage vmtools-images \
            vmtools-rmi vmtools-setup vmtools-vms
 LIBRARY := vmtools.sh getimage.sh pkgman.sh

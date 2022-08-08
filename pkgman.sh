@@ -104,3 +104,37 @@ function manage_repo() {
       ;;
   esac
 }
+
+function manage_packages() {
+  local _pkgman="dnf"
+  local _vmname=""
+  local _action=""
+
+  __need_arg "${1:-}"
+  __need_arg "${2:-}"
+  __need_arg "${3:-}"
+
+  _vmname="${1}"
+  _action="${2}"
+
+  shift 2
+
+  if ! vmtools_vmssh "${_vmname}" 'command -v dnf' >/dev/null 2>&1; then
+    _pkgman="yum"
+  fi
+
+  case "${_action}" in
+    install)
+      vmtools_vmssh "${_vmname}" "${_pkgman} -y install $@" ;;
+    refresh)
+      vmtools_vmssh "${_vmname}" "
+        ${_pkgman} -y remove $@ \
+        && sleep 5 \
+        && ${_pkgman} -y install $@
+      " ;;
+    remove)
+      vmtools_vmssh "${_vmname}" "${_pkgman} -y remove $@" ;;
+    *)
+      __error "Unknown action: ${_action}" ;;
+  esac
+}
