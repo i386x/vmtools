@@ -368,6 +368,10 @@ function __create_vmtools_config() {
 	# third is the socket, and the fourth is the path to the image. The
 	# default format is '${__vm_list_format}':
 	VMTOOLS_VM_LIST_FORMAT="\${VMTOOLS_VM_LIST_FORMAT:-}"
+
+	# Path to the Root CA PEM to be installed to the VM. When unset nothing
+	# is installed:
+	VMTOOLS_ROOT_CA=""
 	_EOF_
 }
 

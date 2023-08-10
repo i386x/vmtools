@@ -72,6 +72,9 @@ function __create_image_setup_yml() {
     echo "    url_b: \"${_url_b}\""
     echo "    url_c: \"${_url_c}\""
     echo "    march: \"${ARCH:-x86_64}\""
+    if [[ "${VMTOOLS_ROOT_CA:-}" ]]; then
+      echo "    root_ca_pem: \"${VMTOOLS_ROOT_CA}\""
+    fi
     echo ''
     echo '  tasks:'
     echo '    - name: Add repositories'
@@ -100,6 +103,19 @@ function __create_image_setup_yml() {
       echo "        - ${_stream}"
     done
     echo ''
+    echo '    - name: Add debug repositories'
+    echo '      yum_repository:'
+    echo "        name: \"rhel{{ ${_expr} }}-debug\""
+    echo '        description: "{{ item }} debug"'
+    echo '        baseurl: "{{ url_a }}/{{ item }}/{{ march }}/debug/tree/"'
+    echo '        enabled: yes'
+    echo '        gpgcheck: no'
+    echo '        state: present'
+    echo '      loop:'
+    for _stream in "$@"; do
+      echo "        - ${_stream}"
+    done
+    echo ''
     echo '    - name: Add Buildroot repository'
     echo '      yum_repository:'
     echo '        name: rhel-buildroot'
@@ -118,6 +134,15 @@ function __create_image_setup_yml() {
     echo '        gpgcheck: no'
     echo '        state: present'
     echo ''
+    echo '    - name: Add Buildroot debug repository'
+    echo '      yum_repository:'
+    echo '        name: rhel-buildroot-debug'
+    echo '        description: Buildroot debug'
+    echo '        baseurl: "{{ url_b }}/{{ march }}/debug/tree/"'
+    echo '        enabled: yes'
+    echo '        gpgcheck: no'
+    echo '        state: present'
+    echo ''
     echo '    - name: Add beaker-harness repository'
     echo '      yum_repository:'
     echo '        name: beaker-harness'
@@ -129,6 +154,24 @@ function __create_image_setup_yml() {
     echo '        skip_if_unavailable: yes'
     echo '        priority: "98"'
     echo '        state: present'
+    if [[ "${VMTOOLS_ROOT_CA:-}" ]]; then
+      echo ''
+      echo '    - name: Ensure directory for Root CA certificates'
+      echo '      file:'
+      echo '        path: /etc/pki/ca-trust/source/anchors'
+      echo '        state: directory'
+      echo ''
+      echo '    - name: Copy Root CA PEM to the remote'
+      echo '      copy:'
+      echo '        src: "{{ root_ca_pem }}"'
+      echo '        dest: "/etc/pki/ca-trust/source/anchors/{{'
+      echo '          root_ca_pem | basename }}"'
+      echo '      register: result'
+      echo ''
+      echo '    - name: Update CA trust'
+      echo '      command: update-ca-trust'
+      echo '      when: result is changed'
+    fi
   } > "${_basename}.yml"
 }
 
