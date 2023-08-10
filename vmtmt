@@ -27,7 +27,9 @@ PATH=".:/usr/local/share/vmtools:/usr/share/vmtools${PATH:+:}${PATH}" \
 clishe_init
 
 clishe_defopt VMNAME "a name of virtual machine"
+clishe_defopt --debug -d -- "print debug messages" DEBUG
 clishe_defopt --help -h -? -- "print this screen and exit" help usage
+clishe_defopt --verbose -v -- "be verbose" VERBOSE
 clishe_defopt "@EXTRA ..." "extra arguments to tmt"
 
 function usage() {
@@ -63,7 +65,7 @@ function main() {
 
     shift
 
-    tmt -vvvddd -c "distro=${_distro}" run -a \
+    tmt ${VERBOSE:+-vvv} ${DEBUG:+-ddd} -c "distro=${_distro}" run -a \
       provision -h connect \
         -g "${VMCFG_HOST}" -P "${VMCFG_PORT}" -k "${_id_rsa}" \
       plans -n /plans/basic \
