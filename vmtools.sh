@@ -657,7 +657,7 @@ function vmtools_remove_image() {
     __softsource "${__vmtoolsconfig}"
 
     _image="${1}"
-    if [[ ! "${_image}" == *.* ]]; then
+    if [[ ! "${_image}" == *.qcow2 ]]; then
       _image="${_image}.qcow2"
     fi
 
