@@ -21,14 +21,19 @@ LIBRARY := vmtools.sh getimage.sh pkgman.sh
 all: check
 
 install:
-	$(MKDIR) -p $(BINDIR)
-	$(MKDIR) -p $(DESTDIR)
-	$(MKDIR) -p $(DOCDIR)
-	$(INSTALL) -p -m 755 $(SCRIPTS) $(BINDIR)
-	$(INSTALL) -p -m 644 $(LIBRARY) $(DESTDIR)
-	$(INSTALL) -p -m 644 README.md $(DOCDIR)
-	$(INSTALL) -p -m 644 LICENSE $(DOCDIR)
-	$(INSTALL) -p -m 644 VERSION $(DOCDIR)
+	$(INSTALL) -vd $(BINDIR)
+	$(INSTALL) -vd $(DESTDIR)
+	$(INSTALL) -vd $(DOCDIR)
+	$(INSTALL) -vp -m 755 $(SCRIPTS) $(BINDIR)
+	$(INSTALL) -vp -m 644 $(LIBRARY) $(DESTDIR)
+	$(INSTALL) -vp -m 644 README.md $(DOCDIR)
+	$(INSTALL) -vp -m 644 LICENSE $(DOCDIR)
+	$(INSTALL) -vp -m 644 VERSION $(DOCDIR)
+
+uninstall:
+	$(RM) -rv $(DOCDIR)
+	$(RM) -rv $(DESTDIR)
+	$(CD) $(BINDIR) && $(RM) -fv $(SCRIPTS)
 
 check:
 	$(SHELLCHECK) -s bash -S style -x $(LIBRARY) $(SCRIPTS)

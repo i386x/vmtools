@@ -10,11 +10,12 @@
 
 NAME := vmtools
 
+CD := cd
 INSTALL := install
-MKDIR := mkdir
+RM := rm
 SHELLCHECK := shellcheck
 
-PREFIX ?= /usr/local
+PREFIX ?= $(HOME)/.local
 
 BINDIR := $(PREFIX)/bin
 DESTDIR := $(PREFIX)/share/$(NAME)

@@ -18,7 +18,7 @@ on operating systems without touching the host. Virtual machines are running in
 ## Installation
 
 ```
-PREFIX=<prefix, default is /usr/local> make install
+PREFIX=<prefix, default is ~/.local> make install
 ```
 
 ## How to Use
