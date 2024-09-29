@@ -37,6 +37,7 @@ clishe_defopt VMNAME "a name of virtual machine"
 clishe_defopt --dry-run -- "" DRY_RUN <<__HELP__
 only print what should be done, do not perform anything
 __HELP__
+clishe_defopt --inventory=VMANSINV -i -- "specify Ansible inventory" optional
 clishe_defopt --help -h -? -- "print this screen and exit" help usage
 clishe_defopt --verbose -v -- "" V <<__HELP__
 set verbosity level (more --verbose options given means more verbosity)
@@ -47,7 +48,8 @@ executed
 __HELP__
 
 function usage() {
-  local _synopsis="VMNAME [--dry-run] [--help] [-h?] [--verbose] [-v]"
+  local _synopsis="VMNAME [--dry-run] [--inventory VMANSINV] [-i VMANSINV]"
+  _synopsis="${_synopsis} [--help] [-h?] [--verbose] [-v]"
   _synopsis="${_synopsis} [VAR1=VAL1 [...]] PLAYBK1 [PLAYBK2 [...]]"
   cat <<-__USAGE__
 	Run Ansible playbooks on virtual machine.
@@ -65,5 +67,5 @@ function usage() {
 
 clishe_process_options "$@"
 
-DRY_RUN="${DRY_RUN:-}" V="${V}" vmtools_vmplay "${VMNAME}" \
-  "${clishe_tailopts[@]}"
+VMANSINV="${VMANSINV:-}" DRY_RUN="${DRY_RUN:-}" V="${V}" \
+vmtools_vmplay "${VMNAME}" "${clishe_tailopts[@]}"

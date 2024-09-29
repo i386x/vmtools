@@ -22,6 +22,7 @@ __cloud_meta_data="meta-data"
 __cloud_user_data="user-data"
 __cloud_init_iso="cloud-init.iso"
 __pidfile="qemu.pid"
+__inventoryfile="inventory.ini"
 __image_list_format='%-30s%-30s%-30s%-30s%s'
 __vm_list_format='%-20s%-30s%-25s%s'
 
@@ -59,6 +60,10 @@ function __cloudpath() {
 
 function __pidfilepath() {
   echo -n "$(__vmpath "${1}")/${__pidfile}"
+}
+
+function __inventorypath() {
+  echo -n "$(__vmpath "${1}")/${__inventoryfile}"
 }
 
 function __realpath() {
@@ -1203,8 +1208,12 @@ function vmtools_vmplay() {
       _v="-${_v}"
     fi
 
+    if [[ -f "$(__inventorypath "${1}")" ]]; then
+      export ANSIBLE_INVENTORY="$(__inventorypath "${1}")"
+    fi
+
     __runcmd ansible-playbook \
-      ${_v} -i "${VMCFG_HOST}," -e "${_extra_vars}" "$@"
+      ${_v} -i "${VMANSINV:-${VMCFG_HOST},}" -e "${_extra_vars}" "$@"
   )
 }
 
