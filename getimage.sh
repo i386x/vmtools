@@ -255,7 +255,7 @@ function vmtools_get_fimage_cmd() {
       _url_b="${_url_a}/BUILDROOT-${_major}${_alpha_beta}"
       _url_a="${_url_a}/${_product^^}-${_major}${_alpha_beta}"
       _url_a="${_url_a}/latest-${_product^^}-${_version}/compose"
-      _url_b="${_url_b}/latest-BUILDROOT-${_version}-${_product^^}-${_major}"
+      _url_b="${_url_b}/latest-BUILDROOT-${_version}.0-${_product^^}-${_major}"
       _url_b="${_url_b}/compose"
       _url_c="${BKRHUB}/harness/RedHatEnterpriseLinux"
       [[ ${_major} -ne 5 ]] || _url_c="${_url_c}Server"
